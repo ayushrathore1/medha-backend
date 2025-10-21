@@ -377,7 +377,7 @@ This project is private and proprietary.
 
 ## 🙏 Acknowledgments
 
-- Google Gemini AI for intelligent content generation
+- Groq AI for intelligent content generation
 - Google Cloud Vision API for OCR capabilities
 - Cloudinary for reliable file storage
 - MongoDB for flexible data storage
