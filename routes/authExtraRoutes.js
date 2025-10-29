@@ -12,12 +12,28 @@ const router = express.Router();
 // Welcome email helper
 async function sendWelcomeEmail(user) {
   const html = `
-    <div style="font-family:sans-serif">
-      <h2>Welcome to Medha, ${user.name || "Learner"} 🎉</h2>
-      <p>Your account is ready. Generate AI quizzes, revise faster, and track progress.</p>
-      <a href="${process.env.APP_BASE_URL}" style="background:#2563eb;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Open Medha</a>
-      <p style="color:#64748b">If you didn’t sign up, ignore this email.</p>
-    </div>
+    <div style="font-family:Inter, Arial, sans-serif; background: #f8fafc; padding: 28px 0; text-align:center;">
+  <div style="background:#fff; border-radius:12px; max-width:480px; margin:auto; padding:36px 32px; box-shadow:0 4px 18px 0 #0002;">
+    <h2 style="color:#2563eb; margin-top:0;">Welcome to <span style="color:#0ea5e9;">Medha</span> 🎉</h2>
+    <p style="font-size:1.18rem; color:#334155; margin-bottom:22px;">
+      Hi <b>{{name}}</b>, <br>
+      We're thrilled to welcome you to India’s smartest notes & revision platform.<br>
+      Medha is now your personal space for superfast note-making, AI-powered quizzes, and deep revision.
+    </p>
+    <p style="font-size:1.08rem; color:#64748b;">
+      🚀 Start exploring all features now:<br>
+      <a href="https://medha-revision.vercel.app" style="background:#2563eb; color:#fff; padding:12px 20px; border-radius:8px;
+      text-decoration:none; font-weight:600; letter-spacing:0.5px; display:inline-block; margin-top:10px;">Open Medha</a>
+    </p>
+    <hr style="margin:32px 0; border: none; border-top:2px solid #eef2f7;">
+    <p style="color:#64748b; font-size:1rem;">
+      If you didn’t sign up, ignore this message.<br>
+      For any questions: reply to this email — we reply fast!
+    </p>
+    <div style="margin-top:16px; font-size:0.97rem; color:#94a3b8;">Happy learning,<br>The Medha Team 🌟</div>
+  </div>
+</div>
+
   `;
   await sendEmail({ to: user.email, subject: "Welcome to Medha!", html });
 }
