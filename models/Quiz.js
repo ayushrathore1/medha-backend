@@ -1,35 +1,30 @@
 const mongoose = require("mongoose");
 
-const questionSchema = new mongoose.Schema(
-  {
-    question: { type: String, required: true },
-    options: [{ type: String, required: true }], // e.g. ["A", "B", "C", "D"]
-    answer: { type: String, required: true }, // e.g. "A"
+const questionSchema = new mongoose.Schema({
+  question: { type: String, required: true },
+  options: {
+    A: String,
+    B: String,
+    C: String,
+    D: String,
   },
-  { _id: false }
-);
+  answer: { type: String, required: true },
+});
 
 const quizSchema = new mongoose.Schema(
   {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    note: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Note",
-      required: true,
-    },
-    subject: {
-      type: String,
-      trim: true,
-    },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    note: { type: mongoose.Schema.Types.ObjectId, ref: "Note", required: true },
+    subject: { type: String, trim: true },
     questions: [questionSchema],
-    isAIGenerated: {
-      type: Boolean,
-      default: false,
-    },
+    isAIGenerated: { type: Boolean, default: false },
+    attempts: [
+      {
+        attemptDate: { type: Date, default: Date.now },
+        answers: [String],
+        score: Number,
+      },
+    ],
   },
   { timestamps: true }
 );
