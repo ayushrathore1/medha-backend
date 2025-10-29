@@ -1,137 +1,222 @@
 const Quiz = require("../models/Quiz");
 const Note = require("../models/Note");
-const env = require("../config/env");
+const Subject = require("../models/Subject");
 const axios = require("axios");
+const JSON5 = require("json5"); // more robust parser
 
-// Get all quizzes for a user or note
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "YOUR_GROQ_API_KEY_HERE";
+const GROQ_MODEL = "openai/gpt-oss-20b";
+
+// Get quizzes (filtered by subject and note)
 exports.getQuizzes = async (req, res) => {
   try {
-    const { noteId } = req.query;
-
-    let filter = { user: req.user.id }; // <-- always use req.user.id
+    const { subject, noteId } = req.query;
+    let filter = { user: req.user.userId };
     if (noteId) filter.note = noteId;
-
+    if (subject) filter.subject = subject;
     const quizzes = await Quiz.find(filter).sort({ createdAt: -1 });
-    res.json({ quizzes });
+    res.json(quizzes);
   } catch (err) {
-    console.error("Fetch Quizzes Error:", err);
     res.status(500).json({ message: "Error fetching quizzes." });
   }
 };
 
-// Get a single quiz by ID
+// Get quiz by ID
 exports.getQuizById = async (req, res) => {
   try {
-    const { quizId } = req.params;
-    const quiz = await Quiz.findOne({ _id: quizId, user: req.user.id }); // <-- use req.user.id
+    const quizId = req.params.id;
+    const quiz = await Quiz.findOne({ _id: quizId, user: req.user.userId });
     if (!quiz) return res.status(404).json({ message: "Quiz not found." });
-    res.json({ quiz });
+    res.json(quiz);
   } catch (err) {
-    console.error("Get QuizById Error:", err);
     res.status(500).json({ message: "Error fetching quiz." });
   }
 };
 
-// Create a quiz (manual input or from questions)
+// Manual quiz creation
 exports.createQuiz = async (req, res) => {
   try {
-    const { noteId, subject, questions } = req.body;
-
-    // Validation (require questions array)
+    const { noteId, questions, subject } = req.body;
     if (!noteId || !Array.isArray(questions) || questions.length === 0)
       return res
         .status(400)
-        .json({ message: "noteId and questions are required." });
+        .json({ message: "noteId and questions required." });
 
-    const quiz = await Quiz.create({
-      user: req.user.id, // <-- use req.user.id
+    const note = await Note.findOne({ _id: noteId, owner: req.user.userId });
+    if (!note)
+      return res
+        .status(404)
+        .json({ message: "Note not found or unauthorized" });
+
+    const quiz = new Quiz({
+      user: req.user.userId,
       note: noteId,
-      subject,
       questions,
+      subject,
+      isAIGenerated: false,
     });
-
+    await quiz.save();
     res.status(201).json({ message: "Quiz created.", quiz });
   } catch (err) {
-    console.error("Create Quiz Error:", err);
     res.status(500).json({ message: "Error creating quiz." });
   }
 };
 
-// Delete a quiz
-exports.deleteQuiz = async (req, res) => {
-  try {
-    const { quizId } = req.params;
-    const deleted = await Quiz.findOneAndDelete({
-      _id: quizId,
-      user: req.user.id, // <-- use req.user.id
-    });
-    if (!deleted) return res.status(404).json({ message: "Quiz not found." });
-    res.json({ message: "Quiz deleted." });
-  } catch (err) {
-    console.error("Delete Quiz Error:", err);
-    res.status(500).json({ message: "Error deleting quiz." });
-  }
-};
-
-// AI: Generate a quiz (array of MCQs) from note text via OpenAI (or any LLM)
+// AI-powered quiz generation using GROQ only (with fallback to json5)
 exports.generateAIQuiz = async (req, res) => {
   try {
     const { noteId, subject } = req.body;
-    if (!noteId)
-      return res.status(400).json({ message: "noteId is required." });
-
+    if (!noteId) return res.status(400).json({ message: "noteId is required" });
     const note = await Note.findById(noteId);
-    if (!note) return res.status(404).json({ message: "Note not found." });
+    if (!note) return res.status(404).json({ message: "Note not found" });
 
-    // Use OpenAI or other LLM to create MCQs/quiz
-    const prompt = `Generate a 10-question multiple choice quiz (MCQ) with 4 options and one correct answer for the following study material. Each question should be like:
-{"question": "...", "options": ["A", "B", "C", "D"], "answer": "A"}
-
-Text:
-${note.extractedText}`;
+    const prompt = `Generate a 10-question multiple choice quiz (MCQ) with 4 options (A-D) and one correct answer.
+Output format: [{"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."}, "answer":"A"}].
+Use this study material: ${note.extractedText || note.content?.trim()}`;
 
     const aiRes = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+      "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: "gpt-3.5-turbo",
+        model: GROQ_MODEL,
         messages: [
           {
             role: "system",
             content:
-              "You are an AI that generates MCQ quizzes from study notes.",
+              "You generate MCQ quizzes from notes. Respond ONLY with a JSON array.",
           },
           { role: "user", content: prompt },
         ],
+        max_tokens: 2048,
       },
       {
         headers: {
-          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+          Authorization: `Bearer ${GROQ_API_KEY}`,
           "Content-Type": "application/json",
         },
       }
     );
 
-    let questions = [];
-    try {
-      questions = JSON.parse(aiRes.data.choices[0].message.content);
-    } catch {
-      questions = [];
+    // Safe cleanup of code blocks and whitespace
+    let aiContent = aiRes.data.choices[0].message.content || "";
+    aiContent = aiContent.trim();
+    if (aiContent.startsWith("```json")) {
+      aiContent = aiContent.slice(7).trim();
+    }
+    if (aiContent.startsWith("```")) {
+      aiContent = aiContent.slice(3).trim();
+    }
+    if (aiContent.endsWith("```")) {
+      aiContent = aiContent.slice(0, -3).trim();
     }
 
-    const quiz = await Quiz.create({
-      user: req.user.id, // <-- use req.user.id
+    // Parse: try JSON, then fallback
+    let questions;
+    try {
+      questions = JSON.parse(aiContent);
+      if (!Array.isArray(questions)) throw new Error("Questions not array");
+    } catch (err) {
+      try {
+        questions = JSON5.parse(aiContent);
+        if (!Array.isArray(questions)) throw new Error("Questions not array");
+      } catch (err2) {
+        return res.status(400).json({
+          message: "AI response not valid JSON.",
+          raw: aiContent,
+        });
+      }
+    }
+
+    const quiz = new Quiz({
+      user: req.user.userId,
       note: noteId,
       subject: subject || note.subject,
       questions,
       isAIGenerated: true,
     });
+    await quiz.save();
 
-    res.status(201).json({ message: "Quiz generated.", quiz });
+    res.status(201).json({ message: "AI Quiz generated.", quiz });
   } catch (err) {
-    console.error(
-      "AI Quiz Generation Error:",
-      err.response?.data || err.message
-    );
     res.status(500).json({ message: "Could not generate AI quiz." });
+  }
+};
+
+// Attempt quiz: submits user answers and gets score
+exports.attemptQuiz = async (req, res) => {
+  try {
+    const quizId = req.params.id;
+    const { answers } = req.body;
+    const quiz = await Quiz.findOne({ _id: quizId, user: req.user.userId });
+    if (!quiz) return res.status(404).json({ message: "Quiz not found." });
+    if (!Array.isArray(answers) || answers.length !== quiz.questions.length)
+      return res.status(400).json({ message: "Answer array length mismatch." });
+
+    let score = 0;
+    quiz.questions.forEach((q, idx) => {
+      if (answers[idx] === q.answer) score += 1;
+    });
+    quiz.attempts.push({ answers, score });
+    await quiz.save();
+
+    res.json({
+      message: "Quiz attempt recorded.",
+      score,
+      total: quiz.questions.length,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error during quiz attempt." });
+  }
+};
+
+// Get all attempts/results for a quiz
+exports.quizResults = async (req, res) => {
+  try {
+    const quizId = req.params.id;
+    const quiz = await Quiz.findOne({ _id: quizId, user: req.user.userId });
+    if (!quiz) return res.status(404).json({ message: "Quiz not found." });
+    res.json({
+      attempts: quiz.attempts,
+      lastAttempt: quiz.attempts.slice(-1) || null,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Could not fetch quiz results." });
+  }
+};
+
+// Update quiz
+exports.updateQuiz = async (req, res) => {
+  try {
+    const quizId = req.params.id;
+    const { questions, subject } = req.body;
+    const quiz = await Quiz.findOneAndUpdate(
+      { _id: quizId, user: req.user.userId },
+      { questions, subject, updatedAt: Date.now() },
+      { new: true }
+    );
+    if (!quiz)
+      return res
+        .status(404)
+        .json({ message: "Quiz not found or unauthorized" });
+    res.json({ message: "Quiz updated.", quiz });
+  } catch (err) {
+    res.status(500).json({ message: "Could not update quiz." });
+  }
+};
+
+// Delete quiz
+exports.deleteQuiz = async (req, res) => {
+  try {
+    const quizId = req.params.id;
+    const quiz = await Quiz.findOneAndDelete({
+      _id: quizId,
+      user: req.user.userId,
+    });
+    if (!quiz)
+      return res
+        .status(404)
+        .json({ message: "Quiz not found or unauthorized" });
+    res.json({ message: "Quiz deleted." });
+  } catch (err) {
+    res.status(500).json({ message: "Could not delete quiz." });
   }
 };
