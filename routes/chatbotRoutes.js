@@ -75,7 +75,7 @@ router.post("/ask", async (req, res) => {
           .filter(Boolean)
       : [];
 
-    const model = "llama-3.3-70b-versatile";
+    const model = "openai/gpt-oss-20b";
     const messages = [
       { role: "system", content: systemPrompt },
       ...mappedContext,
