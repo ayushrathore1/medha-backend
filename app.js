@@ -1,3 +1,19 @@
+const cors = require('cors');
+
+// Replace these origins with your actual deployed frontend URLs!
+const allowedOrigins = [
+  'https://medha-revision.vercel.app', // Vercel frontend prod
+  'http://localhost:3000',
+  'http://localhost:5000'// local frontend dev
+  // add more if needed
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+}));
+
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
