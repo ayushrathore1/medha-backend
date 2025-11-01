@@ -85,3 +85,36 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
+// import { useState } from "react";
+
+// function App() {
+//   const [address, setAddress] = useState("");
+//   const [balance, setBalance] = useState("");
+
+//   const createWallet = async () => {
+//     const res = await fetch("http://localhost:5000/create-wallet");
+//     const data = await res.json();
+//     setAddress(data.address);
+//   };
+
+//   const checkBalance = async () => {
+//     const res = await fetch(`http://localhost:5000/balance/${address}`);
+//     const data = await res.json();
+//     setBalance(data.balance);
+//   };
+
+//   return (
+//     <div>
+//       <h1>Aptos + MERN App 🚀</h1>
+//       <button onClick={createWallet}>Create Wallet</button>
+//       {address && <p>Wallet Address: {address}</p>}
+
+//       {address && <button onClick={checkBalance}>Check Balance</button>}
+//       {balance && <p>Balance: {balance}</p>}
+//     </div>
+//   );
+// }
+
+// export default App;
+
