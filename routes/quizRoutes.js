@@ -5,18 +5,29 @@ const auth = require("../middleware/auth");
 
 // Manual creation from frontend MCQs
 router.post("/", auth, quizController.createQuiz);
-// AI Generation
+
+// AI Generation from notes
 router.post("/generate-ai", auth, quizController.generateAIQuiz);
+
+// AI Generation by topic (NEW)
+router.post("/generate-topic-ai", auth, quizController.generateQuizByTopic);
+
 // List quizzes, filtered
 router.get("/", auth, quizController.getQuizzes);
+
 // Read one quiz (details)
 router.get("/:id", auth, quizController.getQuizById);
+
 // Attempt/submit answers
 router.post("/:id/attempt", auth, quizController.attemptQuiz);
+
 // View quiz results/attempts
 router.get("/:id/results", auth, quizController.quizResults);
+
 // Update quiz (optional, put)
 router.put("/:id", auth, quizController.updateQuiz);
+
+// Delete quiz
 router.delete("/:id", auth, quizController.deleteQuiz);
 
 module.exports = router;
