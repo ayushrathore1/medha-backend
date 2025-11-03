@@ -8,15 +8,17 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-validator": "^7.2.1",
+    "json5": "^2.2.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.1",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^7.0.6",
+    "nodemailer": "^7.0.10",
     "pdf2pic": "^3.2.0",
     "react-hook-form": "^7.62.0",
     "react-router-dom": "^7.9.1",
+    "resend": "^6.3.0",
     "tesseract.js": "^6.0.1"
   },
   "devDependencies": {

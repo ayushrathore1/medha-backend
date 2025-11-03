@@ -1,16 +1,19 @@
 const express = require("express");
-const router = require("express").Router();
+const router = express.Router();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 
+// Import sendWelcomeEmail helper from AuthExtraRoutes
+const { sendWelcomeEmail } = require("./authExtraRoutes");
+
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
-// @route     POST /api/auth/signup
-// @desc      Register a new user
-router.post("/signup", async (req, res, next) => {
+// @route     POST /api/auth/register
+// @desc      Register a new user (alias of /signup)
+router.post("/register", async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
     let user = await User.findOne({ email });
@@ -25,8 +28,18 @@ router.post("/signup", async (req, res, next) => {
       password: hashedPassword,
     });
     await user.save();
+
     const payload = { userId: user._id, email: user.email };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+
+    // SEND WELCOME EMAIL (fire & forget)
+    sendWelcomeEmail(user).catch((error) => {
+      console.error(
+        "[REGISTRATION] Welcome email failed but user created:",
+        error.message
+      );
+    });
+
     res.status(201).json({
       message: "User registered successfully",
       token,
@@ -41,40 +54,36 @@ router.post("/signup", async (req, res, next) => {
   }
 });
 
+// @route     POST /api/auth/signup
+// @desc      Register a new user (legacy/support)
+router.post("/signup", async (req, res, next) => {
+  req.url = "/register";
+  router.handle(req, res, next);
+});
+
 // @route     POST /api/auth/login
 // @desc      Login a user
 router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    console.log("[LOGIN] Body received:", req.body);
-
     if (!email || !password) {
       return res
         .status(400)
         .json({ message: "Email and password are required." });
     }
-
-    // SELECT PASSWORD EXPLICITLY!
     const user = await User.findOne({ email }).select("+password");
-    console.log("[LOGIN] DB user found:", user);
-
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
-
     if (!user.password) {
       return res
         .status(500)
         .json({ message: "Password not set for this user. Signup required." });
     }
-
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log("[LOGIN] bcrypt.compare result:", isMatch);
-
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
-
     const payload = { userId: user._id, email: user.email };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
     res.json({
@@ -96,7 +105,6 @@ router.post("/login", async (req, res, next) => {
 
 // @route     POST /api/auth/change-password
 // @desc      Change user password (requires current password)
-// @access    Private
 router.post("/change-password", auth, async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;

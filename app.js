@@ -14,6 +14,10 @@ const flashcardRoutes = require("./routes/flashcardRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 const ocrRoutes = require("./routes/ocrRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
+const {
+  router: authExtraRoutes,
+  sendWelcomeEmail,
+} = require("./routes/authExtraRoutes");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -37,6 +41,7 @@ app.use("/api/flashcards", flashcardRoutes); // <-- Flashcards route for manual 
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/auth", authExtraRoutes);
 
 // Root route
 app.get("/", (req, res) => {
@@ -48,7 +53,7 @@ app.use(errorHandler);
 
 // MongoDB Connection & Server Startup (only when run directly)
 if (require.main === module) {
-  const PORT = process.env.PORT || 5000;
+  const PORT = process.env.PORT || 5000 || 3000;
   const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/medha";
 
   mongoose
