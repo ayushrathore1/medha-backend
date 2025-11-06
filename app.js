@@ -21,10 +21,10 @@ const {
 
 // Replace these origins with your actual deployed frontend URLs!
 const allowedOrigins = [
+  "https://medha-frontend.pages.dev"// local frontend dev
   'https://medha-revision.vercel.app', // Vercel frontend prod
   'http://localhost:3000',
   'http://localhost:5000',
-  "https://medha-frontend.pages.dev/"// local frontend dev
   // add more if needed
 ];
 // Import middleware
