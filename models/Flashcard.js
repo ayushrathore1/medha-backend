@@ -5,7 +5,7 @@ const FlashcardSchema = new mongoose.Schema(
     note: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Note",
-      required: true,
+      required: false,
     },
     question: {
       type: String,
@@ -27,9 +27,19 @@ const FlashcardSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    topicName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     isAIGenerated: {
       type: Boolean,
       default: false,
+    },
+    difficulty: {
+      type: String,
+      enum: ["easy", "medium", "hard"],
+      default: "medium",
     },
   },
   { timestamps: true }
