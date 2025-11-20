@@ -69,12 +69,43 @@ exports.login = async (req, res) => {
 
     const token = generateToken(user);
 
+    // Streak Logic
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let streak = user.streak || 0;
+    let lastActive = user.lastActiveDate ? new Date(user.lastActiveDate) : null;
+    
+    if (lastActive) {
+      lastActive.setHours(0, 0, 0, 0);
+      const diffTime = Math.abs(today - lastActive);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        // Consecutive day
+        streak += 1;
+      } else if (diffDays > 1) {
+        // Missed a day or more
+        streak = 1;
+      }
+      // If diffDays === 0 (same day), do nothing
+    } else {
+      // First time login or no previous record
+      streak = 1;
+    }
+
+    // Update user
+    user.streak = streak;
+    user.lastActiveDate = new Date();
+    await user.save();
+
     return res.json({
       message: "Login successful.",
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
+        streak: user.streak,
       },
       token,
     });
