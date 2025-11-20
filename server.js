@@ -1,32 +1,43 @@
 require("dotenv").config();
-const mongoose = require("mongoose");
 const express = require("express");
-const app = require("./app");
+const mongoose = require("mongoose");
 const cors = require("cors");
-const { createWallet, getBalance } = require("./aptosConnect");
 
+const authRoutes = require("./routes/authRoutes");
+const subjectRoutes = require("./routes/subjectRoutes");
+const noteRoutes = require("./routes/noteRoutes");
+const flashcardRoutes = require("./routes/flashcardRoutes");
+const chatbotRoutes = require("./routes/chatbotRoutes");
+const todoRoutes = require("./routes/todoRoutes");
+const dashboardRoutes = require("./routes/dashboard");
+
+const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/medha";
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/medha";
 
-// Enable CORS and JSON parsing
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Aptos routes
-app.get("/create-wallet", async (req, res) => {
-  const address = await createWallet();
-  res.json({ address });
-});
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/subjects", subjectRoutes);
+app.use("/api/notes", noteRoutes);
+app.use("/api/flashcards", flashcardRoutes);
+app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/todos", todoRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
-app.get("/balance/:address", async (req, res) => {
-  const balance = await getBalance(req.params.address);
-  res.json({ balance });
+// Basic health check
+app.get("/", (req, res) => {
+  res.send("MEDHA Backend is running!");
 });
 
 // Connect to MongoDB and start the server
 mongoose
-  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(MONGO_URI)
   .then(() => {
+    console.log("✅ Connected to MongoDB");
     app.listen(PORT, () => {
       console.log(`🚀 MEDHA backend running at http://localhost:${PORT}`);
     });
