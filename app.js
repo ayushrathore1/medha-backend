@@ -1,3 +1,7 @@
+
+
+
+
 require("dotenv").config();
 const cors = require('cors');
 const express = require("express");
@@ -21,10 +25,10 @@ const {
 
 // Replace these origins with your actual deployed frontend URLs!
 const allowedOrigins = [
-  'https://medha-revision.pages.dev',// local frontend dev
   'https://medha-revision.vercel.app', // Vercel frontend prod
   'http://localhost:3000',
-  'http://localhost:5000',
+  'http://localhost:5000',// local frontend dev
+  'http://localhost:3002'// local frontend dev
   // add more if needed
 ];
 // Import middleware
@@ -65,7 +69,7 @@ app.use(errorHandler);
 
 // MongoDB Connection & Server Startup (only when run directly)
 if (require.main === module) {
-  const PORT = process.env.PORT || 5000;
+  const PORT = process.env.PORT || 5000 || 3000;
   const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/medha";
 
   mongoose
@@ -82,3 +86,36 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
+// import { useState } from "react";
+
+// function App() {
+//   const [address, setAddress] = useState("");
+//   const [balance, setBalance] = useState("");
+
+//   const createWallet = async () => {
+//     const res = await fetch("http://localhost:5000/create-wallet");
+//     const data = await res.json();
+//     setAddress(data.address);
+//   };
+
+//   const checkBalance = async () => {
+//     const res = await fetch(`http://localhost:5000/balance/${address}`);
+//     const data = await res.json();
+//     setBalance(data.balance);
+//   };
+
+//   return (
+//     <div>
+//       <h1>Aptos + MERN App 🚀</h1>
+//       <button onClick={createWallet}>Create Wallet</button>
+//       {address && <p>Wallet Address: {address}</p>}
+
+//       {address && <button onClick={checkBalance}>Check Balance</button>}
+//       {balance && <p>Balance: {balance}</p>}
+//     </div>
+//   );
+// }
+
+// export default App;
+
