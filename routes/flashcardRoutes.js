@@ -18,6 +18,15 @@ router.get("/:id", auth, flashcardController.getFlashcardById);
 // Update a flashcard by ID
 router.put("/:id", auth, flashcardController.updateFlashcard);
 
+// Update difficulty
+router.patch("/:id/difficulty", auth, flashcardController.updateDifficulty);
+
+// Get review list
+router.get("/list/review", auth, flashcardController.getReviewList);
+
+// Delete a topic
+router.delete("/topic/:topicName", auth, flashcardController.deleteTopic);
+
 // Delete a flashcard by ID
 router.delete("/:id", auth, flashcardController.deleteFlashcard);
 
