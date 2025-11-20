@@ -7,7 +7,7 @@ const schema = new mongoose.Schema({
     required: true,
   },
   tokenHash: { type: String, required: true, index: true },
-  expiresAt: { type: Date, required: true, index: true },
+  expiresAt: { type: Date, required: true },
   used: { type: Boolean, default: false },
 });
 schema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
