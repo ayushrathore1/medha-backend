@@ -11,12 +11,29 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Verify transporter configuration on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ SMTP Configuration Error:", error);
+  } else {
+    console.log("✅ SMTP Server is ready to send emails");
+  }
+});
+
 async function sendEmail({ to, subject, html, from }) {
-  await transporter.sendMail({
-    from: from || `Medha <${process.env.SMTP_USER}>`,
-    to,
-    subject,
-    html,
-  });
+  try {
+    const info = await transporter.sendMail({
+      from: from || `Medha <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      html,
+    });
+    console.log("✅ Email sent successfully. Message ID:", info.messageId);
+    return info;
+  } catch (error) {
+    console.error("❌ Error sending email:", error);
+    throw error;
+  }
 }
+
 module.exports = { sendEmail };
