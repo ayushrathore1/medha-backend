@@ -43,6 +43,7 @@ exports.createFlashcard = async (req, res) => {
       topicName: topicName || "Manual",
       isAIGenerated: false,
       difficulty: "medium" // Flashcard difficulty is deprecated in favor of Topic difficulty, but keeping for schema
+      
     });
     await flashcard.save();
     res.status(201).json({ message: "Flashcard created.", flashcard });
@@ -147,6 +148,7 @@ ${promptContext}
           owner: req.user.userId,
           subject: subjectToUse,
           topicName: finalTopicName,
+          topicName: topic || (noteId ? (await Note.findById(noteId)).title : "General"),
           isAIGenerated: true,
           difficulty: "medium"
         })
@@ -188,6 +190,7 @@ exports.deleteTopic = async (req, res) => {
 };
 
 // Update flashcard difficulty (Legacy/Individual)
+// Update flashcard difficulty
 exports.updateDifficulty = async (req, res) => {
   try {
     const { id } = req.params;

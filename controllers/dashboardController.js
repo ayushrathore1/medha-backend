@@ -17,6 +17,9 @@ exports.getDashboardStats = async (req, res) => {
       Flashcard.countDocuments({ owner: userId, viewed: true }), // Cards Learned = Viewed
       Note.countDocuments({ user: userId }),
       Topic.find({ owner: userId, difficulty: "hard" }), // Topics to Review
+      Flashcard.countDocuments({ user: userId }),
+      Note.countDocuments({ user: userId }),
+      Flashcard.find({ user: userId, nextReview: { $lte: new Date() } }).limit(10),
     ]);
 
     // Calculate accuracy (mock logic for now, or aggregate from quizzes)

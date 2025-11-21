@@ -24,11 +24,14 @@ router.put("/:id", auth, flashcardController.updateFlashcard);
 // Update difficulty
 router.patch("/:id/difficulty", auth, flashcardController.updateDifficulty);
 
+
 // Update topic difficulty
 router.patch("/topic/:topicName/difficulty", auth, flashcardController.updateTopicDifficulty);
 
 // Mark viewed
 router.patch("/:id/viewed", auth, flashcardController.markViewed);
+
+
 
 // Get review list
 router.get("/list/review", auth, flashcardController.getReviewList);
