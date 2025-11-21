@@ -1,12 +1,20 @@
 // controllers/noteController.js
 const Note = require("../models/Note");
+const mongoose = require("mongoose");
 
 // List notes (optionally filtered by subject/user)
 exports.getNotes = async (req, res) => {
   try {
     const { subject } = req.query;
     const filter = { owner: req.user._id };
-    if (subject) filter.subject = subject;
+
+    if (subject) {
+      if (!mongoose.Types.ObjectId.isValid(subject)) {
+        return res.status(400).json({ error: "Invalid subject ID format." });
+      }
+      filter.subject = subject;
+    }
+
     const notes = await Note.find(filter).sort({ createdAt: -1 });
     res.json({ notes });
   } catch (err) {

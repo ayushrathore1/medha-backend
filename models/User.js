@@ -39,13 +39,27 @@ const userSchema = new mongoose.Schema(
       type: String, // URL to profile picture
       default: "",
     },
+    streak: {
+      type: Number,
+      default: 0,
+    },
+    lastActiveDate: {
+      type: Date,
+      default: null,
+    },
+    dailyPlan: {
+      type: String,
+      default: "",
+    },
+    dailyPlanDate: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true, // adds createdAt, updatedAt
   }
 );
 
-// Optional: Index for faster case-insensitive unique email lookup
-userSchema.index({ email: 1 });
 
 module.exports = mongoose.model("User", userSchema);
