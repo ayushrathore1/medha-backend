@@ -6,9 +6,6 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 
-// Import sendWelcomeEmail helper from AuthExtraRoutes
-const { sendWelcomeEmail } = require("./authExtraRoutes");
-
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
 // @route     POST /api/auth/register
@@ -31,15 +28,6 @@ router.post("/register", async (req, res, next) => {
 
     const payload = { userId: user._id, email: user.email };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
-
-    // SEND WELCOME EMAIL (fire & forget)
-    sendWelcomeEmail(user).catch((error) => {
-      console.error(
-        "[REGISTRATION] Welcome email failed but user created:",
-        error.message
-      );
-    });
-
     res.status(201).json({
       message: "User registered successfully",
       token,
@@ -54,22 +42,13 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
-// @route     POST /api/auth/signup
-// @desc      Register a new user (legacy/support)
-router.post("/signup", async (req, res, next) => {
-  req.url = "/register";
-  router.handle(req, res, next);
-});
-
 // @route     POST /api/auth/login
 // @desc      Login a user
 router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required." });
+      return res.status(400).json({ message: "Email and password are required." });
     }
     const user = await User.findOne({ email }).select("+password");
     if (!user) {

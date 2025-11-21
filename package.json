@@ -1,4 +1,9 @@
 {
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "axios": "^1.12.2",
@@ -26,4 +31,7 @@
     "nodemon": "^3.1.10",
     "prettier": "^3.6.2"
   }
+
+
 }
+

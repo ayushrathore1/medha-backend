@@ -1,13 +1,6 @@
 require("dotenv").config();
 const nodemailer = require("nodemailer");
 
-// Check env vars
-if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-  console.error(
-    "⚠️  WARNING: SMTP_USER or SMTP_PASS not set in environment variables!"
-  );
-}
-
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: Number(process.env.SMTP_PORT || 465),
@@ -18,13 +11,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Verify transporter configuration on startup
 transporter.verify((error, success) => {
   if (error) {
-    console.error("❌ SMTP Configuration Error:", error.message);
-    console.error("Please check your SMTP credentials in .env file");
+    console.error("❌ SMTP Configuration Error:", error);
   } else {
-    console.log("✅ SMTP Server ready to send emails");
-    console.log(`📧 Configured email: ${process.env.SMTP_USER}`);
+    console.log("✅ SMTP Server is ready to send emails");
   }
 });
 
@@ -36,10 +28,10 @@ async function sendEmail({ to, subject, html, from }) {
       subject,
       html,
     });
-    console.log(`[EMAIL SENT] MessageID: ${info.messageId} to ${to}`);
+    console.log("✅ Email sent successfully. Message ID:", info.messageId);
     return info;
   } catch (error) {
-    console.error(`[EMAIL ERROR] Failed to send to ${to}:`, error.message);
+    console.error("❌ Error sending email:", error);
     throw error;
   }
 }
