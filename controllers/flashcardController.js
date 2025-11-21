@@ -2,6 +2,7 @@ const Flashcard = require("../models/Flashcard");
 const Note = require("../models/Note");
 const Topic = require("../models/Topic");
 const axios = require("axios");
+const mongoose = require("mongoose");
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "YOUR_GROQ_API_KEY_HERE";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
@@ -62,10 +63,10 @@ exports.generateAIFlashcards = async (req, res) => {
     let subjectToUse = subject;
 
     if (noteId) {
-      const note = await Note.findById(noteId);
+      const note = await Note.findById(noteId).populate("subject");
       if (!note) return res.status(404).json({ message: "Note not found" });
       promptContext = `Notes:\n${note.extractedText || note.content}`;
-      subjectToUse = note.subject;
+      subjectToUse = note.subject?.name || "General";
     } else if (topic) {
       promptContext = `Topic: ${topic}`;
       if (!subjectToUse) return res.status(400).json({ message: "Subject is required when generating from topic" });

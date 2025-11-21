@@ -43,8 +43,8 @@ exports.uploadNote = async (req, res) => {
       fileUrl: file.path,
       fileType: file.mimetype,
       originalName: file.originalname,
-      content: "",
-      extractedText: "", // OCR logic can be handled separately
+      content: req.body.content || "",
+      extractedText: req.body.content || "", // OCR logic can be handled separately
     });
 
     await note.save();
