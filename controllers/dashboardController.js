@@ -83,7 +83,7 @@ exports.generateDailyPlan = async (req, res) => {
     const aiRes = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: "llama3-8b-8192", // Fast and good enough
+        model: "openai/gpt-oss-20b", // Fast and good enough
         messages: [
             { role: "system", content: "You are a helpful study assistant." },
             { role: "user", content: systemPrompt }
@@ -107,7 +107,11 @@ exports.generateDailyPlan = async (req, res) => {
 
     res.status(200).json({ plan: planText });
   } catch (err) {
-    console.error("Error generating daily plan:", err);
+    console.error("Error generating daily plan:", err.message);
+    if (err.response) {
+        console.error("Groq API Error Data:", JSON.stringify(err.response.data, null, 2));
+        console.error("Groq API Error Status:", err.response.status);
+    }
     res.status(500).json({ message: "Error generating daily plan" });
   }
 };
