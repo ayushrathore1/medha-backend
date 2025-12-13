@@ -18,30 +18,111 @@ const SUBJECT_DATA = {
             unitName: "Random Variables",
             totalMarks: 12,
             youtubePlaylistUrl: "https://youtube.com/playlist?list=PLU6SqdYcYsfIaokdZTmptaf-PK7s-B0ju",
+            questions: [
+              { qCode: "Q1 (Part A)", marks: 2, text: "If <b>X</b> is a random variable such that <b>Var(X) = 5</b>, then what will be the value of <b>Var(2X + 10)</b>?" },
+              { qCode: "Q2 (Part A)", marks: 2, text: "State <b>Chebyshev's inequality</b>." },
+              { qCode: "Q1 (Part B)", marks: 4, text: "Demonstrate the probability of <b>not getting a 7 or 11 total</b> on either of two tosses of a pair of fair dice." },
+              { qCode: "Q2 (Part B)", marks: 4, text: "If <b>X</b> is a continuous random variable whose pdf is given by:<br/> f(x) = c(4x - 2x<sup>2</sup>), 0 < x < 2;<br/> f(x) = 0 otherwise.<br/><br/> Find (a) the value of <b>c</b> and (b) <b>P(X > 1)</b>." }
+            ]
           },
           {
             unitSerial: 2,
             unitName: "Binomial, Normal, Other Distributions & Correlation",
             totalMarks: 34,
             youtubePlaylistUrl: "https://www.youtube.com/playlist?list=PLU6SqdYcYsfJPF-4HphQQ8OceDtqhlSW8",
+            questions: [
+              { qCode: "Q3 (Part A)", marks: 2, text: "Define <b>Binomial distribution</b>. What will be the value of <b>p</b> if the binomial distribution is symmetrical?" },
+              { qCode: "Q4 (Part A)", marks: 2, text: "How many number of normal equations are required for fitting a polynomial of degree 2 by least square method?" },
+              { qCode: "Q5 (Part A)", marks: 2, text: "Define the <b>Spearman's formula</b> for modified rank correlation coefficient for repeated rank." },
+              { qCode: "Q3 (Part B)", marks: 4, text: "Define <b>exponential distribution</b>, and show that the variance is the square of the mean in exponential distribution." },
+              { qCode: "Q4 (Part B)", marks: 4, text: `
+                Find the most likely price in Bombay corresponding to the price of Rs. 70 at Calcutta from the following:<br/>
+                <table style="width:100%; border-collapse: collapse; margin-top:10px; font-size:13px; border:1px solid #444;">
+                  <tr style="background:rgba(255,255,255,0.05);">
+                    <td style="border:1px solid #444; padding:6px;"></td>
+                    <td style="border:1px solid #444; padding:6px; font-weight:bold;">Average Price</td>
+                    <td style="border:1px solid #444; padding:6px; font-weight:bold;">Standard Deviation</td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #444; padding:6px; font-weight:bold;">Bombay</td>
+                    <td style="border:1px solid #444; padding:6px; text-align:center;">67</td>
+                    <td style="border:1px solid #444; padding:6px; text-align:center;">2.5</td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #444; padding:6px; font-weight:bold;">Calcutta</td>
+                    <td style="border:1px solid #444; padding:6px; text-align:center;">65</td>
+                    <td style="border:1px solid #444; padding:6px; text-align:center;">3.5</td>
+                  </tr>
+                </table>
+                <br/>
+                Correlation coefficient between the prices of commodities in the two cities is <b>0.8</b>.
+              ` },
+              { qCode: "Q1 (Part C)", marks: 10, text: "<b>X</b> is normally distributed and the mean of X is 30 and standard deviation is 5. Find out the probability of the following:<br/> (a) 26 ≤ X ≤ 40<br/> (b) X ≥ 45<br/> (c) |X - 30| > 5.<br/> Given that P(0 < Z < 0.8) = 0.2881." },
+              { qCode: "Q2 (Part C)", marks: 10, text: `
+                Calculate the correlation coefficient for the following data:<br/>
+                <div style="overflow-x: auto;">
+                  <table style="width:100%; border-collapse: collapse; margin-top:10px; font-size:13px; border:1px solid #444;">
+                    <tr>
+                      <td style="border:1px solid #444; padding:4px; font-weight:bold;">X</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">65</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">66</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">67</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">67</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">68</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">69</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">70</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">72</td>
+                    </tr>
+                    <tr>
+                      <td style="border:1px solid #444; padding:4px; font-weight:bold;">Y</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">67</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">68</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">65</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">68</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">72</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">72</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">69</td>
+                      <td style="border:1px solid #444; padding:4px; text-align:center;">71</td>
+                    </tr>
+                  </table>
+                </div>
+              ` }
+            ]
           },
           {
             unitSerial: 3,
             unitName: "Historical Development & Classification of Optimization Problems",
             totalMarks: 12,
             youtubePlaylistUrl: "https://www.youtube.com/playlist?list=PLkcUpbkZXroUHn0nv8zv2CwYBWbDNZOTz",
+            questions: [
+              { qCode: "Q6 (Part A)", marks: 2, text: "What is the difference between linear and nonlinear programming problems?" },
+              { qCode: "Q3 (Part C)", marks: 10, text: "What is <b>optimization</b>? Write a short note on the classification of optimization problems based on various parameters." }
+            ]
           },
           {
             unitSerial: 4,
             unitName: "Classical Optimization, Lagrange & Kuhn–Tucker",
             totalMarks: 18,
             youtubePlaylistUrl: "https://www.youtube.com/playlist?list=PLDQ4Vk5YdytEBWSLplYlhkpL9YcXOke2y",
+            questions: [
+              { qCode: "Q7 (Part A)", marks: 2, text: "State the necessary and sufficient conditions for the minimum of a function <b>f(x)</b>." },
+              { qCode: "Q8 (Part A)", marks: 2, text: "Consider the following problem:<br/> Minimize <b>f(x)</b><br/> Subject to <b>g<sub>j</sub>(x) ≤ 0, j = 1, 2, ..., m</b>.<br/> Then write the suitable <b>Kuhn–Tucker conditions</b>." },
+              { qCode: "Q6 (Part B)", marks: 4, text: "Using the direct substitution method, find minimum value of <b>x<sup>2</sup> + y<sup>2</sup> + z<sup>2</sup></b> when <b>ax + by + cz = p</b>." },
+              { qCode: "Q4 (Part C)", marks: 10, text: "Minimize <b>f(x) = x<sub>1</sub><sup>2</sup> - x<sub>2</sub><sup>2</sup></b><br/> Subject to:<br/> g<sub>1</sub>(x) = x<sub>1</sub> - x<sub>2</sub> = 0<br/> g<sub>2</sub>(x) = x<sub>1</sub> + x<sub>2</sub> + x<sub>3</sub> - 1 = 0<br/> by <b>Lagrange's multipliers method</b>." }
+            ]
           },
           {
             unitSerial: 5,
             unitName: "Linear Programming, Duality & Transportation",
             totalMarks: 22,
             youtubePlaylistUrl: "https://www.youtube.com/playlist?list=PLU6SqdYcYsfLewoQPYjgg7SMBLjSV704v",
+            questions: [
+              { qCode: "Q9 (Part A)", marks: 2, text: "Let <b>m</b> and <b>n</b> denote the numbers of equations and decision variables respectively. Then what happens when <b>m = n</b> in a Linear Programming Problem (LPP)?" },
+              { qCode: "Q10 (Part A)", marks: 2, text: "What do you mean by the <b>unbalanced transportation problem</b>?" },
+              { qCode: "Q5 (Part B)", marks: 4, text: "An animal food company must produce 200 kg of a mixture containing ingredients A and B daily. Ingredient A costs Rs. 3 per kg and B costs Rs. 8 per kg. No more than 80 kg of A can be used and at least 60 kg of B must be used. Find the mathematical model corresponding to the above problem." },
+              { qCode: "Q7 (Part B)", marks: 4, text: "Write the <b>dual</b> of the following problem:<br/> Minimize <b>z = 2x<sub>1</sub> + x<sub>2</sub></b><br/> Subject to:<br/> 3x<sub>1</sub> + x<sub>2</sub> ≥ 3<br/> 4x<sub>1</sub> + 3x<sub>2</sub> ≥ 6<br/> x<sub>1</sub> + 2x<sub>2</sub> ≥ 2<br/> x<sub>1</sub>, x<sub>2</sub> ≥ 0." },
+              { qCode: "Q5 (Part C)", marks: 10, text: "Using <b>Big-M method</b>, solve the following linear programming problem:<br/> Maximize <b>z = -2x<sub>1</sub> - x<sub>2</sub></b><br/> Subject to:<br/> 3x<sub>1</sub> + 4x<sub>2</sub> ≤ 3<br/> 4x<sub>1</sub> + x<sub>2</sub> ≥ 6<br/> x<sub>1</sub> + 2x<sub>2</sub> ≤ 4<br/> and x<sub>1</sub>, x<sub>2</sub> ≥ 0." }
+            ]
           },
         ],
       },
