@@ -12,6 +12,7 @@ const todoRoutes = require("./routes/todoRoutes");
 const dashboardRoutes = require("./routes/dashboard");
 const quizRoutes = require("./routes/quizRoutes");
 const ocrRoutes = require("./routes/ocrRoutes");
+const rtuRoutes = require("./routes/rtuRoutes");
 const { router: authExtraRoutes } = require("./routes/authExtraRoutes");
 
 const app = express();
@@ -32,6 +33,7 @@ app.use("/api/todos", todoRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/ocr", ocrRoutes);
+app.use("/api/rtu", rtuRoutes);
 app.use("/api/auth", authExtraRoutes);
 
 // Basic health check
