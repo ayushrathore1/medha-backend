@@ -6,9 +6,10 @@ const RTU_DEFAULT_TOPICS = [
   "Advanced Engineering Mathematics",
   "Managerial Economics and Financial Accounting",
   "Digital Electronics",
-  "Data Structure and Algorithms",
+  "Data Structures and Algorithms",
   "Object Oriented Programming",
   "Software Engineering",
+  "Technical Communication",
 ];
 
 exports.getRTU3rdSemTopics = async (req, res) => {
