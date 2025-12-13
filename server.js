@@ -12,6 +12,7 @@ const todoRoutes = require("./routes/todoRoutes");
 const dashboardRoutes = require("./routes/dashboard");
 const quizRoutes = require("./routes/quizRoutes");
 const ocrRoutes = require("./routes/ocrRoutes");
+const userRoutes = require("./routes/userRoutes");
 const rtuRoutes = require("./routes/rtuRoutes");
 const { router: authExtraRoutes } = require("./routes/authExtraRoutes");
 
@@ -25,6 +26,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/subjects", subjectRoutes);
 app.use("/api/notes", noteRoutes);
 app.use("/api/flashcards", flashcardRoutes);
