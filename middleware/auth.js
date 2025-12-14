@@ -24,6 +24,7 @@ const auth = (req, res, next) => {
       userId: decoded.userId, // For full compatibility with all routes/controllers
       email: decoded.email, // Attach email (if needed downstream)
     };
+    req.userId = decoded.userId; // Set directly for controllers accessing req.userId
     next();
   } catch (err) {
     return res.status(401).json({ message: "Token is not valid" });

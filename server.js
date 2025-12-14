@@ -8,12 +8,14 @@ const subjectRoutes = require("./routes/subjectRoutes");
 const noteRoutes = require("./routes/noteRoutes");
 const flashcardRoutes = require("./routes/flashcardRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
+const chatHistoryRoutes = require("./routes/chatHistoryRoutes");
 const todoRoutes = require("./routes/todoRoutes");
 const dashboardRoutes = require("./routes/dashboard");
 const quizRoutes = require("./routes/quizRoutes");
 const ocrRoutes = require("./routes/ocrRoutes");
 const userRoutes = require("./routes/userRoutes");
 const rtuRoutes = require("./routes/rtuRoutes");
+const messageRoutes = require("./routes/messageRoutes");
 const { router: authExtraRoutes } = require("./routes/authExtraRoutes");
 
 const app = express();
@@ -31,11 +33,13 @@ app.use("/api/subjects", subjectRoutes);
 app.use("/api/notes", noteRoutes);
 app.use("/api/flashcards", flashcardRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/chat", chatHistoryRoutes);
 app.use("/api/todos", todoRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/rtu", rtuRoutes);
+app.use("/api/messages", messageRoutes);
 app.use("/api/auth", authExtraRoutes);
 
 // Basic health check

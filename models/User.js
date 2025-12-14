@@ -55,11 +55,23 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true, // adds createdAt, updatedAt
   }
 );
+
+// Pre-save hook to set admin for specific email
+userSchema.pre("save", function (next) {
+  if (this.email === "rathoreayush512@gmail.com") {
+    this.isAdmin = true;
+  }
+  next();
+});
 
 
 module.exports = mongoose.model("User", userSchema);

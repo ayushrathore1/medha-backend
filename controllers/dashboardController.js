@@ -70,35 +70,90 @@ exports.generateDailyPlan = async (req, res) => {
     const todos = await Todo.find({ user: userId, isCompleted: false });
 
     const todoListText = todos.map(t => `- ${t.task}`).join("\n");
+    const now = new Date();
+    const currentDateTime = now.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     
-    const systemPrompt = `You are an expert study coach. Create a concise, motivating daily plan paragraph for a student.
-    The student has the following tasks to complete today:
+    const apiKey = process.env.GROQ_API_KEY;
+    const model = "llama-3.3-70b-versatile"; 
+
+    // --- STEP 1: PROMPT ENGINEERING (The "Intermediate AI") ---
+    // Goal: Turn vague user input into precise instructions for the Coach AI
+    console.log("🧠 Step 1: Enhancing user prompt...");
+    
+    const enhancerSystemPrompt = `You are a world-class Prompt Engineer for Educational AIs.
+    Your goal is to take a student's raw, potentially messy input and their to-do list, and transform it into a PERFECT, detailed set of instructions for a Study Coach AI.
+    
+    Context:
+    - Current Date: ${currentDateTime}
+    - Student's Todos: 
     ${todoListText}
     
-    ${prompt ? `The student also wants to focus on: ${prompt}` : ""}
+    User's Raw Input: "${prompt || "Make a plan for me based on my todos"}"
     
-    Write a single paragraph (max 150 words) that organizes these tasks into a logical flow, offers a quick tip for efficiency, and is encouraging. Do not use bullet points. Write it as a cohesive narrative.`;
+    Your Output MUST be a set of clear, step-by-step instructions that I can feed to the Study Coach AI. 
+    
+    ANALYSIS STEPS:
+    1. **Identify Request Type**: Is this Exam Prep? General Routine? Motivation? or a Sprit (Cramming)?
+    2. **Extract Constraints**: Dates, specific subjects, time limits.
+    
+    INSTRUCTION GENERATION RULES:
+    - If dates/exams are mentioned -> specific day-by-day countdown.
+    - If NO specific event -> Create a balanced, efficient daily routine for today.
+    - If input is vague (e.g., "I'm tired") -> Instruct Coach to be motivational and suggest light tasks.
+    - Enforce formatting: "Use bullet points", "Bold specific dates", "Use timestamps if applicable".
+    - CRITICAL: Instruct the Coach to separate each Day or Major Phase with a triple dash "---" on a new line.
+    - Do NOT generate the plan yourself. Only generate the INSTRUCTIONS for the plan.`;
 
-    const apiKey = process.env.GROQ_API_KEY;
-    const aiRes = await axios.post(
+    const enhancerRes = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: "openai/gpt-oss-20b", // Fast and good enough
+        model: model,
         messages: [
-            { role: "system", content: "You are a helpful study assistant." },
-            { role: "user", content: systemPrompt }
+            { role: "system", content: enhancerSystemPrompt },
+            { role: "user", content: "Optimize this request for the Study Coach." }
         ],
-        max_tokens: 200,
+        temperature: 0.7,
+        max_tokens: 1024,
       },
+      { headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" } }
+    );
+
+    const enhancedInstructions = enhancerRes.data.choices[0]?.message?.content || prompt;
+    console.log("✨ Enhanced Instructions:", enhancedInstructions);
+
+    // --- STEP 2: THE STUDY COACH (The "Frontend AI") ---
+    // Goal: Execute the enhanced instructions to create the final plan
+    console.log("🎓 Step 2: Generating final plan...");
+
+    const coachSystemPrompt = `You are an expert Study Coach and Time Management Specialist.
+    You are receiving a set of highly specific instructions to create a study plan.
+    Follow them EXACTLY.
+    
+    General Rules:
+    - Tone: Encouraging, professional, but strict about efficiency.
+    - Format: Use Markdown. clear headers (##), bullet points (-), and bold text (**text**) for emphasis.
+    - If dates are involved, create a chronological schedule.
+    - CRITICAL: You MUST separate each Day or Major Section of the plan with a triple dash "---" on its own line.
+    - Never mention "Reviewing the instructions" or "Here is the plan representing...". Just give the plan.`;
+
+    const finalRes = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
       {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        model: model,
+        messages: [
+            { role: "system", content: coachSystemPrompt },
+            { role: "user", content: enhancedInstructions } // Feed the optimized prompt here
+        ],
+        temperature: 0.5, // Lower temperature for more adherence to instructions
+        max_tokens: 8192,
+      },
+      { 
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          timeout: 120000 // 120 seconds timeout for long plans
       }
     );
 
-    const planText = aiRes.data.choices[0]?.message?.content || "Could not generate plan.";
+    const planText = finalRes.data.choices[0]?.message?.content || "Could not generate plan.";
 
     // Save to user profile
     user.dailyPlan = planText;
@@ -110,7 +165,6 @@ exports.generateDailyPlan = async (req, res) => {
     console.error("Error generating daily plan:", err.message);
     if (err.response) {
         console.error("Groq API Error Data:", JSON.stringify(err.response.data, null, 2));
-        console.error("Groq API Error Status:", err.response.status);
     }
     res.status(500).json({ message: "Error generating daily plan" });
   }

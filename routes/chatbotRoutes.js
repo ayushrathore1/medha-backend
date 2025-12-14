@@ -1,8 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const axios = require("axios");
+const jwt = require("jsonwebtoken");
+const { buildRAGContext } = require("../utils/ragContextBuilder");
+const { needsWebSearch, performWebSearch, formatSearchContext } = require("../utils/webSearch");
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "YOUR_GROQ_API_KEY_HERE";
+const JWT_SECRET = process.env.JWT_SECRET || "853f32a2825ea94c1586147858f09663a1fcc51d926d7cbfc5440d67fbe80dc30ac1f805ef9bcf8699dffbc31e4505bcb345543c771e0272eabd0a4d011216ec";
 
 // Detect "who built you" (case-insensitive fuzzy matching)
 function isCreatorQuestion(input) {
@@ -30,39 +34,103 @@ function isDetailedRequest(input) {
   );
 }
 
-// Friendly system prompt for Medha AI (does NOT mention creators by default)
-const systemPrompt = `
-You are MEDHA, an AI assistant for computer science students.
-Your personality: Super friendly, positive, creative, motivating, and caring. Make students feel good about asking, always encourage curiosity, and offer related follow-ups for study-related answers.
-Give concise, friendly, and natural responses for greetings and chitchat.
-For academic questions, give easy-to-understand answers; if asked for details or explanations, provide a detailed answer.
-End every academic answer with a friendly question inviting the user to ask about related concepts or go deeper, unless answering a greeting or short question.
+// Optional auth middleware - extracts userId if token present, but doesn't block
+function optionalAuth(req, res, next) {
+  const authHeader = req.header("Authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.replace("Bearer ", "");
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.userId = decoded.userId;
+    } catch (err) {
+      // Invalid token - ignore, proceed without userId
+      req.userId = null;
+    }
+  } else {
+    req.userId = null;
+  }
+  next();
+}
+
+// Base system prompt for Medha AI
+const baseSystemPrompt = `
+You are MEDHA, an AI assistant for computer science students at RTU (Rajasthan Technical University).
+Your personality: Super friendly, positive, creative, motivating, and caring. Make students feel good about asking, always encourage curiosity.
+
+IMPORTANT BEHAVIOR RULES:
+- If you know the user's name, greet them by name naturally.
+- If asked "who am I" or similar personal questions, respond with their actual details (name, college, branch, year) if available in the context.
+- NEVER say things like "I have access to your profile" or "I can see your data" - this sounds creepy and invasive.
+- Just USE the personalized information naturally, as if you already know them as a friend.
+- If you don't have user information, politely ask them to log in for a personalized experience.
+
+RESPONSE GUIDELINES:
+- For greetings: Give concise, friendly responses. Use their name if you know it.
+- For academic questions: Give easy-to-understand answers with examples.
+- For syllabus-related questions: Reference the specific unit and topics from RTU syllabus.
+- Always end academic answers with a friendly follow-up question.
+
 If anyone asks who built you, always reply: "I was built by Ayush Rathore, Awantika Jaiswal, Devansh Maini, Aviral Joshi, and Harshvardhan Bhatt of the second year Computer Science department."
-If the user asks for a study plan, daily plan, or to-do list, generate a JSON array of tasks in this format: [{"task": "Task description"}]. Do not add any other text.
-Ignore any unrelated or inappropriate topics and keep the conversation academic and friendly.
 `;
 
-router.post("/ask", async (req, res) => {
+router.post("/ask", optionalAuth, async (req, res) => {
   try {
-    const { input, contextMessages = [] } = req.body;
+    const { input, contextMessages = [], sessionId } = req.body;
+    const userId = req.userId;
 
-    // Medha AI creators recognition
+    // Import ChatSession model for saving messages
+    const ChatSession = require("../models/ChatSession");
+
+    // Handle creator questions
     if (isCreatorQuestion(input)) {
-      return res.json({
-        answer:
-          "Hey there! I was built by Ayush Rathore, Awantika Jaiswal, Devansh Maini, Aviral Joshi, and Harshvardhan Bhatt of the second year Computer Science department. If you need any help related to computer science, I'm always here for you! 😊",
-      });
+      const answer = "Hey there! I was built by Ayush Rathore, Awantika Jaiswal, Devansh Maini, Aviral Joshi, and Harshvardhan Bhatt of the second year Computer Science department. If you need any help related to computer science, I'm always here for you! 😊";
+      
+      // Save to session if provided
+      if (sessionId && userId) {
+        await ChatSession.findOneAndUpdate(
+          { _id: sessionId, user: userId },
+          { $push: { messages: [{ role: "user", content: input }, { role: "assistant", content: answer }] } }
+        );
+      }
+      
+      return res.json({ answer });
     }
 
-    // Greet if just a greeting
+    // Handle greetings
     if (isGreeting(input)) {
-      return res.json({
-        answer:
-          "Hi there! 😊 I'm Medha, your friendly computer science study buddy. Ask me anything about your subjects or concepts, and I'll be happy to help!",
-      });
+      const greetingResponse = userId 
+        ? "Hi there! 😊 I'm Medha, your friendly computer science study buddy. Ask me anything about your subjects or concepts, and I'll give you personalized help!"
+        : "Hi there! 😊 I'm Medha, your friendly computer science study buddy. Log in to get personalized help based on your study progress!";
+      
+      // Save to session if provided
+      if (sessionId && userId) {
+        await ChatSession.findOneAndUpdate(
+          { _id: sessionId, user: userId },
+          { $push: { messages: [{ role: "user", content: input }, { role: "assistant", content: greetingResponse }] } }
+        );
+      }
+      
+      return res.json({ answer: greetingResponse });
     }
 
-    // Map context if present
+    // Build RAG context from database
+    console.log("🧠 Building RAG context for user:", userId || "anonymous");
+    const ragContext = await buildRAGContext(userId, input);
+    
+    if (ragContext.fullContext) {
+      console.log("✅ RAG context built successfully");
+    }
+
+    // Check if web search is needed and perform it (AI decides)
+    let webSearchContext = "";
+    const shouldSearch = await needsWebSearch(input);
+    if (shouldSearch) {
+      console.log("🌐 AI decided web search is needed...");
+      const searchResults = await performWebSearch(input);
+      webSearchContext = formatSearchContext(searchResults);
+    }
+
+    // Map context messages
     const mappedContext = Array.isArray(contextMessages)
       ? contextMessages
           .map((msg) => {
@@ -76,34 +144,46 @@ router.post("/ask", async (req, res) => {
           .filter(Boolean)
       : [];
 
-    const model = "openai/gpt-oss-20b";
+    // Build final system prompt with time, RAG context, and web search results
+    const now = new Date();
+    const timeContext = `
+[CURRENT DATE & TIME]
+Today is ${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+Current time: ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}.
+Timezone: India Standard Time (IST).
+
+`;
+    const enhancedSystemPrompt = baseSystemPrompt + timeContext + (ragContext.fullContext || "") + webSearchContext;
+
+    const model = "llama-3.3-70b-versatile";
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: enhancedSystemPrompt },
       ...mappedContext,
       { role: "user", content: input },
     ];
 
-    console.log("DEBUG MESSAGES:", JSON.stringify(messages, null, 2));
+    console.log("🤖 Sending request to Groq AI...");
 
     const groqRes = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
         model,
         messages,
-        max_tokens: isDetailedRequest(input) ? 700 : 350, // more tokens if request needs detail/explanation
+        max_tokens: isDetailedRequest(input) ? 1500 : 700,
+        temperature: 0.7,
       },
       {
         headers: {
           Authorization: `Bearer ${GROQ_API_KEY}`,
           "Content-Type": "application/json",
         },
+        timeout: 60000,
       }
     );
 
     let aiText = groqRes.data.choices[0].message.content;
 
-    // For academic answers only, append friendly follow-up
-    // Skip if the response looks like a JSON array (for study plans)
+    // Add friendly follow-up for academic answers
     if (
       !aiText.trim().startsWith("[") &&
       (isDetailedRequest(input) || (!isGreeting(input) && input.length > 3))
@@ -123,13 +203,158 @@ router.post("/ask", async (req, res) => {
       }
     }
 
+    // Save messages to session if sessionId provided
+    if (sessionId && userId) {
+      try {
+        // Check if this is the first message (for auto-titling)
+        const session = await ChatSession.findById(sessionId);
+        const updateData = {
+          $push: { 
+            messages: { 
+              $each: [
+                { role: "user", content: input }, 
+                { role: "assistant", content: aiText }
+              ] 
+            } 
+          }
+        };
+        
+        // Auto-generate title from first user message
+        if (session && session.title === "New Chat" && session.messages.length === 0) {
+          updateData.$set = { title: input.substring(0, 40) + (input.length > 40 ? "..." : "") };
+        }
+        
+        await ChatSession.findOneAndUpdate(
+          { _id: sessionId, user: userId },
+          updateData
+        );
+      } catch (saveErr) {
+        console.error("Failed to save message to session:", saveErr);
+        // Don't fail the request, just log the error
+      }
+    }
+
     res.json({
       answer: aiText,
+      hasContext: !!ragContext.fullContext,
     });
   } catch (err) {
-    console.error(err.response?.data || err);
+    console.error("❌ Chatbot error:", err.response?.data || err.message);
     res.status(500).json({ error: err.message || "Groq AI API error" });
   }
 });
 
+// Solve endpoint for exam questions
+router.post("/solve", optionalAuth, async (req, res) => {
+  try {
+    const { question, subject, unit, marks } = req.body;
+    const userId = req.userId;
+
+    if (!question) {
+      return res.status(400).json({ error: "Question is required" });
+    }
+
+    console.log(`📝 Solving exam question for subject: ${subject}, unit: ${unit}`);
+
+    // Build RAG context for the subject/unit
+    const ragContext = await buildRAGContext(userId, `${subject} ${unit} ${question}`);
+
+    // Check if web search is needed
+    const { needsWebSearch, performWebSearch, formatSearchContext } = require("../utils/webSearch");
+    let webSearchContext = "";
+    const shouldSearch = await needsWebSearch(question);
+    if (shouldSearch) {
+      console.log("🌐 Question may need web search...");
+      const searchResults = await performWebSearch(`${subject} ${question}`);
+      webSearchContext = formatSearchContext(searchResults);
+    }
+
+    // Current time context
+    const now = new Date();
+    const timeContext = `
+[CURRENT DATE & TIME]
+Today is ${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+`;
+
+    // Exam solution prompt
+    const solvePrompt = `
+You are an expert exam tutor for RTU (Rajasthan Technical University) students.
+
+
+
+## Question Details
+**Subject:** ${subject || "Not specified"}
+**Unit:** ${unit || "Not specified"}
+**Marks:** ${marks || "Not specified"}
+**Question:** ${question}
+
+${ragContext.fullContext || ""}
+${webSearchContext}
+${timeContext}
+
+## Instructions
+Generate a complete, exam-ready answer for this question. Your response must:
+
+1. **Be formatted for maximum marks** - Structure your answer exactly as expected in RTU exams
+2. **Include all key points** - Cover every aspect the examiner would look for
+3. **Use proper headings and subheadings** - Make it easy to read and grade
+4. **Include diagrams description if applicable** - Mention where diagrams should be drawn
+5. **Match the marks allocation** - For ${marks || "this"} marks question, provide appropriate depth
+6. **Use bullet points and numbered lists** where appropriate
+7. **Highlight key terms** using bold
+8. **Add examples** if relevant to the topic
+
+## Response Format
+Structure your answer with:
+- **Definition/Introduction** (if applicable)
+- **Main Content** (with proper subheadings)
+- **Key Points/Features**
+- **Examples/Applications** (if relevant)
+- **Diagram Notes** (if applicable)
+- **Conclusion** (if applicable)
+
+Provide the COMPLETE answer, ready to be written in an exam.
+`;
+
+    const model = "llama-3.3-70b-versatile";
+    const messages = [
+      { role: "user", content: solvePrompt }
+    ];
+
+    console.log("🤖 Generating exam solution...");
+
+    const groqRes = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model,
+        messages,
+        max_tokens: 3000,
+        temperature: 0.3, // Lower for more accurate, structured answers
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 90000,
+      }
+    );
+
+    const solution = groqRes.data.choices[0].message.content;
+    console.log("✅ Exam solution generated successfully");
+
+    res.json({
+      solution,
+      subject,
+      unit,
+      marks,
+      hasWebSearch: !!webSearchContext,
+    });
+  } catch (err) {
+    console.error("❌ Solve error:", err.response?.data || err.message);
+    res.status(500).json({ error: err.message || "Failed to generate solution" });
+  }
+});
+
 module.exports = router;
+

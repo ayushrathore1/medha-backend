@@ -51,10 +51,13 @@ router.post("/forgot-password", async (req, res) => {
     if (!email) return res.status(400).json({ message: "Email required" });
 
     const user = await User.findOne({ email });
-    if (!user)
+    if (!user) {
+      console.log(`⚠️ Password reset requested for non-existent email: ${email}`);
       return res
         .status(200)
         .json({ message: "If this email exists, a reset link has been sent." });
+    }
+    console.log(`✅ Password reset requested for existing user: ${email}`);
 
     const rawToken = crypto.randomBytes(32).toString("hex");
     const tokenHash = await bcrypt.hash(rawToken, 10);
