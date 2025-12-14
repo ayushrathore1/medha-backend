@@ -1196,46 +1196,44 @@ const SUBJECT_DATA = {
     }
   },
   "Managerial Economics and Financial Accounting": {
-    totalPaperMarks: 112, // 22+30+16+18+26
+    totalPaperMarks: 98, // 18+18+18+18+26
     years: {
       2024: {
         units: [
           {
             unitSerial: 1,
             unitName: "Basic Economic Concepts",
-            totalMarks: 22,
+            totalMarks: 18,
             youtubePlaylistUrl: null,
             questions: [
               { qCode: "Q1 (Part A)", marks: 2, text: "Explain <b>Gross Domestic Product (GDP)</b>." },
               { qCode: "Q2 (Part A)", marks: 2, text: "Draw <b>circular flow of economic activities</b>." },
-              { qCode: "Q3 (Part A)", marks: 2, text: "Draw graphs for (a) <b>perfectly inelastic demand</b>, (b) <b>perfectly elastic demand</b>." },
-              { qCode: "Q4 (Part A)", marks: 2, text: "What is <b>Giffen paradox</b>?" },
-              { qCode: "Q1 (Part B)", marks: 4, text: "Define <b>national income</b> and explain steps to estimate it by income method." },
-              { qCode: "Q3 (Part C)", marks: 10, text: "<b>\"Economics is an art.\"</b> Elaborate explaining meaning, nature and scope of economics." }
+              { qCode: "Q1 (Part B)", marks: 4, text: "Define <b>National Income</b>. Explain steps involved in the estimation of national income by income method." },
+              { qCode: "Q3 (Part C)", marks: 10, text: "<b>\"Economics is an art.\"</b> Elaborate this statement by explaining meaning, nature and scope of Economics." }
             ]
           },
           {
             unitSerial: 2,
             unitName: "Demand and Supply Analysis",
-            totalMarks: 30,
+            totalMarks: 18,
             youtubePlaylistUrl: null,
             questions: [
-              { qCode: "Q5 (Part A)", marks: 2, text: "Give mathematical form of <b>Cobb–Douglas production function</b>." },
-              { qCode: "Q4 (Part B)", marks: 4, text: "(a) Why demand curve under <b>monopolistic competition</b> is more elastic than under monopoly? (b) Explain freedom of entry and exit to firms in industry." },
-              { qCode: "Q5 (Part B)", marks: 4, text: "Explain, with graphs: <b>zero, negative, unit, and greater‑than‑unity income elasticity</b>." },
-              { qCode: "Q2 (Part C)", marks: 10, text: "Compute and interpret various elasticities: <b>cross, income, price elasticity of demand</b>, and <b>elasticity of supply</b> for given numerical changes." },
-              { qCode: "Q4 (Part C)", marks: 10, text: "<b>\"A competitive firm is not a price maker but an adjustor.\"</b> Explain with price determination in short and long run under perfect competition." }
+              { qCode: "Q3 (Part A)", marks: 2, text: "Draw graph to show: a) <b>Perfectly Inelastic Demand</b> b) <b>Perfectly elastic demand</b>" },
+              { qCode: "Q4 (Part A)", marks: 2, text: "What is <b>Giffen Paradox</b>?" },
+              { qCode: "Q5 (Part B)", marks: 4, text: "Explain following with help of suitable graph: a) <b>Zero income elasticity</b> b) <b>Negative Income elasticity</b> c) <b>Unit incom elasticity</b> d) <b>Income elasticity greater than unity</b>" },
+              { qCode: "Q2 (Part C)", marks: 10, text: "Calculate and also comment on degree of elasticity:<br/> a) The price of tea per cup is decreased from Rs. 4 to Rs. 3 and the demand of coffee is increased from 2 cups per day to 4 cups per day. Calculate <b>Cross Elasticity of Demand</b>.<br/> b) Mr. Gupta's income is raised from Rs. 10,000 to Rs. 15,000 and the demand for good A is raised from 500 to 800 units. Calculate <b>Income Elasticity of Demand</b>.<br/> c) The demand of commodity X is raised from 200 to 250 units when price decreased from Rs. 8 to Rs. 6. Calculate <b>Price Elasticity of Demand</b>.<br/> d) If the price rises of good A rises from Rs. 20 to Rs. 30. Its supply increases from 200 to 800 units. Calculate <b>Elasticity of Supply</b>." }
             ]
           },
           {
             unitSerial: 3,
             unitName: "Production and Cost Analysis",
-            totalMarks: 16,
+            totalMarks: 18,
             youtubePlaylistUrl: null,
             questions: [
-              { qCode: "Q6 (Part A)", marks: 2, text: "Define <b>explicit and implicit costs</b> with example." },
+              { qCode: "Q5 (Part A)", marks: 2, text: "Give mathematical form of <b>Cobb - Douglas production function</b>." },
+              { qCode: "Q6 (Part A)", marks: 2, text: "Define <b>Explicit and implicit costs</b> with example." },
               { qCode: "Q2 (Part B)", marks: 4, text: "Explain <b>economies and diseconomies of scale</b> with examples." },
-              { qCode: "Q1 (Part C)", marks: 10, text: "(a) Complete cost table (<b>TFC, TVC, TC, AVC, ATC, MC</b>) and (b) draw graphs showing relationships between costs and output." }
+              { qCode: "Q1 (Part C)", marks: 10, text: "a) Complete the following table:<br/><table style=\"width:100%; border-collapse: collapse; margin-top:10px; font-size:13px; border:1px solid #444;\"><tr style=\"background:rgba(255,255,255,0.05);\"><th style=\"border:1px solid #444; padding:4px;\">QTY</th><th style=\"border:1px solid #444; padding:4px;\">TFC</th><th style=\"border:1px solid #444; padding:4px;\">TVC</th><th style=\"border:1px solid #444; padding:4px;\">TC</th><th style=\"border:1px solid #444; padding:4px;\">AVC</th><th style=\"border:1px solid #444; padding:4px;\">ATC</th><th style=\"border:1px solid #444; padding:4px;\">MC</th></tr><tr><td>0</td><td>60</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr><tr><td>1</td><td>...</td><td>30</td><td>...</td><td>...</td><td>...</td><td>...</td></tr><tr><td>2</td><td>...</td><td>...</td><td>100</td><td>...</td><td>...</td><td>...</td></tr><tr><td>3</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>5</td></tr><tr><td>4</td><td>...</td><td>...</td><td>...</td><td>...</td><td>28.75</td><td>...</td></tr><tr><td>5</td><td>...</td><td>...</td><td>...</td><td>15</td><td>...</td><td>...</td></tr></table><br/> b) Draw graph/graphs showing relationship between any five Costs with Quantity (Units)." }
             ]
           },
           {
@@ -1245,9 +1243,9 @@ const SUBJECT_DATA = {
             youtubePlaylistUrl: null,
             questions: [
               { qCode: "Q7 (Part A)", marks: 2, text: "Draw a chart to show different <b>market structures</b>." },
-              { qCode: "Q8 (Part A)", marks: 2, text: "List four important features of <b>monopoly market</b>." },
-              { qCode: "Q4 (Part B)", marks: 4, text: "<b>Monopolistic competition</b> demand elasticity and entry–exit freedom." },
-              { qCode: "Q4 (Part C)", marks: 10, text: "<b>Perfect competition</b> firm as price adjustor in short and long run." }
+              { qCode: "Q8 (Part A)", marks: 2, text: "List four important features of <b>Monopoly market</b>." },
+              { qCode: "Q4 (Part B)", marks: 4, text: "a) Why is the demand curve of a firm under <b>monopolistic competition</b> more elastic than under monopoly? Explain.<br/> b) Explain 'freedom of entry and exit to firms in industry' feature of monopolistic competition." },
+              { qCode: "Q4 (Part C)", marks: 10, text: "<b>\"A competitive firm is not a price maker, but adjustor.\"</b> Explain this statement with reference to price determination in long and short term under perfect competition." }
             ]
           },
           {
@@ -1258,10 +1256,10 @@ const SUBJECT_DATA = {
             questions: [
               { qCode: "Q9 (Part A)", marks: 2, text: "What is <b>golden rule of accounting</b> for real accounts?" },
               { qCode: "Q10 (Part A)", marks: 2, text: "Define <b>payback period</b>." },
-              { qCode: "Q3 (Part B)", marks: 4, text: "Calculate <b>cash flows from operating activities</b> by direct and indirect methods with example." },
-              { qCode: "Q6 (Part B)", marks: 4, text: "Short answers on balance‑sheet categories for <b>accruals/notes payable/AP</b>, inventories/cash/receivables, trade credit, and equity." },
-              { qCode: "Q7 (Part B)", marks: 4, text: "Explain <b>liquidity and solvency ratios</b> (with formula)." },
-              { qCode: "Q5 (Part C)", marks: 10, text: "From two years' balance sheets of Brown & Co. Ltd., prepare schedule of <b>changes in working capital</b> and <b>funds‑flow statement</b>." }
+              { qCode: "Q3 (Part B)", marks: 4, text: "How will you calculate <b>cash flows from operating activities</b> by direct and indirect method. Explain with example." },
+              { qCode: "Q6 (Part B)", marks: 4, text: "Give brief answer of following Questions on Balance Sheet:<br/> a) On balance sheet, accruals, notes payable, and account payable are listed under which category?<br/> b) Inventories, cash and equivalents, and accounts receivables are listed as?<br/> c) A firm buys products but does not pay to suppliers instantly. This is recorded as?<br/> d) In a balance sheet, the total of common stock and retained earnings are denoted as?" },
+              { qCode: "Q7 (Part B)", marks: 4, text: "Explain following ratios: (Formula is must)<br/> a) <b>Liquidity Ratio</b><br/> b) <b>Solvency Ratio</b>" },
+              { qCode: "Q5 (Part C)", marks: 10, text: "Prepare a Schedule of changes in <b>Working Capital</b> and a Statement showing the <b>Sources and Application of Funds</b> for 2021 from the balance sheet of Brown and co. Ltd. (Additional info: Rs. 50,000 depreciation charged on Plant and Machinery; Machinery sold for Rs 8,000 which cost Rs 12,000 with 7,000 depreciation)" }
             ]
           }
         ]
