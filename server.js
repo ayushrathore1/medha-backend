@@ -16,6 +16,7 @@ const ocrRoutes = require("./routes/ocrRoutes");
 const userRoutes = require("./routes/userRoutes");
 const rtuRoutes = require("./routes/rtuRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 const { router: authExtraRoutes } = require("./routes/authExtraRoutes");
 
 const app = express();
@@ -40,6 +41,7 @@ app.use("/api/quizzes", quizRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/rtu", rtuRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/chats", chatRoutes);
 app.use("/api/auth", authExtraRoutes);
 
 // Basic health check

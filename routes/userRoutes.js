@@ -92,4 +92,26 @@ router.put("/change-password", auth, async (req, res, next) => {
   }
 });
 
+// @route   POST /api/users/increment-notification-view
+// @desc    Increment the feature notification view count
+// @access  Private
+router.post("/increment-notification-view", auth, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.featureNotificationViews = (user.featureNotificationViews || 0) + 1;
+    await user.save();
+
+    res.json({ 
+      success: true, 
+      views: user.featureNotificationViews 
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
