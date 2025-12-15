@@ -42,6 +42,7 @@ app.use("/api/ocr", ocrRoutes);
 app.use("/api/rtu", rtuRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/chats", chatRoutes);
+app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/auth", authExtraRoutes);
 
 // Basic health check
