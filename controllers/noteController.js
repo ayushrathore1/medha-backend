@@ -2,7 +2,7 @@
 const Note = require("../models/Note");
 const mongoose = require("mongoose");
 
-// List notes (optionally filtered by subject/user)
+// List user's own notes (optionally filtered by subject)
 exports.getNotes = async (req, res) => {
   try {
     const { subject } = req.query;
@@ -15,8 +15,62 @@ exports.getNotes = async (req, res) => {
       filter.subject = subject;
     }
 
-    const notes = await Note.find(filter).sort({ createdAt: -1 });
+    const notes = await Note.find(filter)
+      .populate("owner", "name email")
+      .populate("subject", "name")
+      .sort({ createdAt: -1 });
     res.json({ notes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get all public notes (for explore/discover feature)
+exports.getPublicNotes = async (req, res) => {
+  try {
+    const { search, subject } = req.query;
+    const filter = { isPublic: true };
+    
+    if (subject) {
+      filter.subject = subject;
+    }
+    
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { content: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const notes = await Note.find(filter)
+      .populate("owner", "name email")
+      .populate("subject", "name")
+      .sort({ createdAt: -1 })
+      .limit(50);
+    
+    res.json({ notes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Toggle note visibility (public/private)
+exports.toggleVisibility = async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    
+    const note = await Note.findOne({ _id: noteId, owner: req.user._id });
+    if (!note) {
+      return res.status(404).json({ error: "Note not found or not owned by you." });
+    }
+    
+    note.isPublic = !note.isPublic;
+    await note.save();
+    
+    res.json({ 
+      message: `Note is now ${note.isPublic ? 'public' : 'private'}`,
+      note 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -27,6 +81,11 @@ exports.uploadNote = async (req, res) => {
   try {
     const { title, subject } = req.body;
     const owner = req.user._id;
+    
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: "Title is required." });
+    }
+    
     if (!subject) {
       return res.status(400).json({ error: "Subject is required." });
     }
@@ -37,17 +96,22 @@ exports.uploadNote = async (req, res) => {
     }
 
     const note = new Note({
-      title,
+      title: title.trim(),
       subject,
       owner,
       fileUrl: file.path,
       fileType: file.mimetype,
       originalName: file.originalname,
       content: req.body.content || "",
-      extractedText: req.body.content || "", // OCR logic can be handled separately
+      extractedText: req.body.content || "",
+      isPublic: false, // Private by default
     });
 
     await note.save();
+    
+    // Populate owner info before returning
+    await note.populate("owner", "name email");
+    
     res.status(201).json({ message: "Note uploaded successfully!", note });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -58,7 +122,11 @@ exports.uploadNote = async (req, res) => {
 exports.createTextNote = async (req, res) => {
   try {
     const { title, content, subject } = req.body;
-    const owner = req.user._id; // Use _id attached by auth middleware
+    const owner = req.user._id;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: "Title is required." });
+    }
 
     if (!content || !subject) {
       return res
@@ -67,7 +135,7 @@ exports.createTextNote = async (req, res) => {
     }
 
     const note = new Note({
-      title,
+      title: title.trim(),
       content,
       subject,
       owner,
@@ -75,22 +143,28 @@ exports.createTextNote = async (req, res) => {
       fileType: null,
       originalName: null,
       extractedText: content,
+      isPublic: false, // Private by default
     });
 
     await note.save();
+    await note.populate("owner", "name email");
+    
     res.status(201).json({ message: "Text note created successfully!", note });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Update/Edit a note by ID - NEW FUNCTION
+// Update/Edit a note by ID
 exports.updateNote = async (req, res) => {
   try {
     const { noteId } = req.params;
-    const { title, content, subject } = req.body;
+    const { title, content, subject, isPublic } = req.body;
 
-    // Validate required fields
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: "Title is required." });
+    }
+
     if (!content || !content.trim()) {
       return res.status(400).json({ error: "Content is required." });
     }
@@ -99,24 +173,30 @@ exports.updateNote = async (req, res) => {
       return res.status(400).json({ error: "Subject is required." });
     }
 
-    // Find and update the note
+    const updateData = {
+      title: title.trim(),
+      content: content.trim(),
+      subject,
+      extractedText: content.trim(),
+      updatedAt: new Date(),
+    };
+    
+    // Only update isPublic if explicitly provided
+    if (typeof isPublic === 'boolean') {
+      updateData.isPublic = isPublic;
+    }
+
     const updatedNote = await Note.findOneAndUpdate(
       {
         _id: noteId,
-        owner: req.user._id, // Ensure user owns the note
+        owner: req.user._id,
       },
+      updateData,
       {
-        title: title?.trim() || "",
-        content: content.trim(),
-        subject,
-        extractedText: content.trim(), // Update extracted text as well for consistency
-        updatedAt: new Date(),
-      },
-      {
-        new: true, // Return updated document
-        runValidators: true, // Run schema validators
+        new: true,
+        runValidators: true,
       }
-    );
+    ).populate("owner", "name email");
 
     if (!updatedNote) {
       return res.status(404).json({
@@ -151,11 +231,23 @@ exports.deleteNote = async (req, res) => {
   }
 };
 
-// Get a single note by ID
+// Get a single note by ID (owner or public)
 exports.getNoteById = async (req, res) => {
   try {
     const { noteId } = req.params;
-    const note = await Note.findOne({ _id: noteId, owner: req.user._id });
+    
+    // First try to find as owner
+    let note = await Note.findOne({ _id: noteId, owner: req.user._id })
+      .populate("owner", "name email")
+      .populate("subject", "name");
+    
+    // If not owner, check if it's public
+    if (!note) {
+      note = await Note.findOne({ _id: noteId, isPublic: true })
+        .populate("owner", "name email")
+        .populate("subject", "name");
+    }
+    
     if (!note) return res.status(404).json({ error: "Note not found." });
     res.json(note);
   } catch (err) {

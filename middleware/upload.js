@@ -41,11 +41,15 @@ function fileFilter(req, file, cb) {
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    let folder = "uploads";
+    const isPDF = file.mimetype === "application/pdf";
     return {
-      folder: folder,
-      resource_type: file.mimetype === "application/pdf" ? "raw" : "auto",
-      public_id: `${Date.now()}-${file.originalname}`,
+      folder: "uploads",
+      resource_type: isPDF ? "raw" : "auto",
+      public_id: `${Date.now()}-${file.originalname.replace(/\.[^/.]+$/, "")}`,
+      // Make PDFs publicly accessible
+      access_mode: "public",
+      // For PDFs, use delivery type that allows direct access
+      type: "upload",
     };
   },
 });

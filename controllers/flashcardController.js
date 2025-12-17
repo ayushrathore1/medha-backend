@@ -149,7 +149,6 @@ ${promptContext}
           owner: req.user.userId,
           subject: subjectToUse,
           topicName: finalTopicName,
-          topicName: topic || (noteId ? (await Note.findById(noteId)).title : "General"),
           isAIGenerated: true,
           difficulty: "medium"
         })
@@ -270,47 +269,37 @@ exports.markViewed = async (req, res) => {
   }
 };
 
-// Get Topics with stats
+// Get Topics with stats - Aggregates directly from Flashcards
 exports.getTopics = async (req, res) => {
   try {
-    const { subject } = req.query;
-    let filter = { owner: req.user.userId };
-    if (subject) filter.subject = subject;
-    
-    const topics = await Topic.find(filter);
-    
-    // We need to get counts for each topic. 
-    // To avoid N+1 queries, we can aggregate or just query all flashcards and group in memory if dataset is small.
-    // Or better, use aggregation.
-    
-    const stats = await Flashcard.aggregate([
+    // Aggregate topics from flashcards directly - this avoids Topic model confusion
+    const topics = await Flashcard.aggregate([
       { $match: { owner: new mongoose.Types.ObjectId(req.user.userId) } },
-      { $group: {
+      { 
+        $group: {
           _id: "$topicName",
+          subject: { $first: "$subject" },
+          difficulty: { $first: "$difficulty" },
           total: { $sum: 1 },
-          viewed: { $sum: { $cond: [{ $eq: ["$viewed", true] }, 1, 0] } }
+          viewed: { $sum: { $cond: [{ $eq: ["$viewed", true] }, 1, 0] } },
+          createdAt: { $min: "$createdAt" }
         }
-      }
+      },
+      { $sort: { createdAt: -1 } }
     ]);
     
-    const statsMap = {};
-    stats.forEach(s => statsMap[s._id] = s);
-    
-    // Merge
+    // Format the response
     const result = topics.map(t => ({
-      ...t.toObject(),
-      totalCards: statsMap[t.name]?.total || 0,
-      viewedCards: statsMap[t.name]?.viewed || 0
+      topicName: t._id,
+      subject: t.subject || "General",
+      difficulty: t.difficulty || "medium",
+      total: t.total,
+      viewed: t.viewed,
     }));
-    
-    // Also include topics that might exist in Flashcards but not in Topic collection (legacy/migration)
-    // For now, let's assume we only care about Topics in the collection, 
-    // but we should probably auto-create topics if they are missing?
-    // Let's just return what we have in Topics collection for now.
     
     res.status(200).json({ topics: result });
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching topics:", err);
     res.status(500).json({ message: "Error fetching topics" });
   }
 };

@@ -4,7 +4,10 @@ const noteController = require("../controllers/noteController");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
 
-// List notes (optionally by subject)
+// Get all public notes (explore feature) - must be before /:noteId
+router.get("/public", auth, noteController.getPublicNotes);
+
+// List user's own notes (optionally by subject)
 router.get("/", auth, noteController.getNotes);
 
 // Upload a note (file upload)
@@ -12,6 +15,9 @@ router.post("/", auth, upload.single("file"), noteController.uploadNote);
 
 // Create a text-only note
 router.post("/text", auth, noteController.createTextNote);
+
+// Toggle note visibility (public/private)
+router.patch("/:noteId/visibility", auth, noteController.toggleVisibility);
 
 // Update/Edit a note by ID
 router.put("/:noteId", auth, noteController.updateNote);

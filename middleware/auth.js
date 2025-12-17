@@ -1,9 +1,13 @@
 const jwt = require("jsonwebtoken");
 
-// Use your JWT secret from environment variables for security
-const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  "853f32a2825ea94c1586147858f09663a1fcc51d926d7cbfc5440d67fbe80dc30ac1f805ef9bcf8699dffbc31e4505bcb345543c771e0272eabd0a4d011216ec";
+// JWT secret MUST be set in environment variables for security
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error("❌ CRITICAL: JWT_SECRET environment variable is not set!");
+  console.error("Please set JWT_SECRET in your .env file");
+  process.exit(1);
+}
 
 const auth = (req, res, next) => {
   // Get token from Authorization header: "Bearer <token>"
