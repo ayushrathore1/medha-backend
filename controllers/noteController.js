@@ -270,22 +270,38 @@ exports.toggleLike = async (req, res) => {
       return res.status(404).json({ error: "Note not found." });
     }
 
-    // Check if already liked
-    const index = note.likes.indexOf(userId);
-    let isLiked = false;
+    // Check if user already liked this note (using efficient atomic logic check)
+    // We check if userId exists in the likes array
+    const isLiked = note.likes.some(id => id.toString() === userId.toString());
 
-    if (index === -1) {
-      // Like
+    if (isLiked) {
+      // Unlike: Atomic pull from both Note and User
+      await Note.findByIdAndUpdate(noteId, { $pull: { likes: userId } });
+      await User.findByIdAndUpdate(userId, { $pull: { likedNotes: noteId } });
+      
+      // Update local note object for response
+      note.likes = note.likes.filter(id => id.toString() !== userId.toString());
+      
+      return res.json({ 
+        success: true, 
+        isLiked: false, 
+        likesCount: note.likes.length 
+      });
+
+    } else {
+      // Like: Atomic addToSet to avoid duplicates in both Note and User
+      await Note.findByIdAndUpdate(noteId, { $addToSet: { likes: userId } });
+      await User.findByIdAndUpdate(userId, { $addToSet: { likedNotes: noteId } });
+      
+      // Update local note object for response
       note.likes.push(userId);
-      isLiked = true;
 
       // Create notification for owner if not self-like
-      if (note.owner._id.toString() !== userId.toString()) {
+      if (note.owner && note.owner._id.toString() !== userId.toString()) {
         try {
-          // Fetch liker's name since req.user might not have it populated
           const liker = await User.findById(userId).select("name");
           const likerName = liker ? liker.name : "Someone";
-          
+
           await notifications.createNotification({
              recipient: note.owner._id,
              type: "like",
@@ -299,21 +315,15 @@ exports.toggleLike = async (req, res) => {
         }
       }
 
-    } else {
-      // Unlike
-      note.likes.splice(index, 1);
-      isLiked = false;
+      return res.json({ 
+        success: true, 
+        isLiked: true, 
+        likesCount: note.likes.length 
+      });
     }
 
-    await note.save();
-
-    res.json({ 
-      success: true, 
-      likes: note.likes.length, 
-      isLiked 
-    });
-
   } catch (err) {
+    console.error("Toggle like error:", err);
     res.status(500).json({ error: err.message });
   }
 };

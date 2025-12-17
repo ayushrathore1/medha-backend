@@ -63,6 +63,10 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    likedNotes: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Note",
+    }],
   },
   {
     timestamps: true, // adds createdAt, updatedAt
