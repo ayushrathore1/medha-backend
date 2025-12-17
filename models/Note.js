@@ -52,6 +52,13 @@ const NoteSchema = new mongoose.Schema(
         question: String,
         options: [String],
         correctAnswer: String,
+        explanation: String,
+      },
+    ],
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
       },
     ],
   },

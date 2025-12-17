@@ -22,14 +22,12 @@ const {
 // Replace these origins with your actual deployed frontend URLs!
 const allowedOrigins = [
   'https://medha-revision.vercel.app',
-  'https://medha-revision.pages.dev/',// Vercel frontend prod
+  'https://medha-revision.pages.dev',
+  'https://medha-revision.pages.dev/',
   'http://localhost:3000',
-  'http://localhost:5000',// local frontend dev
-  'http://localhost:3002',// local frontend dev
-  'http://localhost:5000', // local frontend dev
-  'http://localhost:3002'  // local frontend dev
-  // add more if needed
+  'http://localhost:5000',
 ];
+  // add more if needed
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -66,6 +64,11 @@ app.use("/api/flashcards", flashcardRoutes); // <-- Flashcards route for manual 
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+const notificationRoutes = require("./routes/notificationRoutes");
+
+// ... (other route imports)
+
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/auth", authExtraRoutes);
 
 // Root route

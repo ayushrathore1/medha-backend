@@ -19,6 +19,9 @@ router.post("/text", auth, noteController.createTextNote);
 // Toggle note visibility (public/private)
 router.patch("/:noteId/visibility", auth, noteController.toggleVisibility);
 
+// Toggle Like
+router.post("/:noteId/like", auth, noteController.toggleLike);
+
 // Update/Edit a note by ID
 router.put("/:noteId", auth, noteController.updateNote);
 

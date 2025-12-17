@@ -1,6 +1,11 @@
 // controllers/noteController.js
 const Note = require("../models/Note");
 const mongoose = require("mongoose");
+const Notification = require("./notificationController"); // Use controller for creating notifications
+// Or better import the model directly if logic is simple, but reused notification controller Logic is safer.
+// Actually notificationController.createNotification is what I defined.
+const notifications = require("./notificationController");
+
 
 // List user's own notes (optionally filtered by subject)
 exports.getNotes = async (req, res) => {
@@ -250,6 +255,62 @@ exports.getNoteById = async (req, res) => {
     
     if (!note) return res.status(404).json({ error: "Note not found." });
     res.json(note);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Toggle Like on a Note
+exports.toggleLike = async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const userId = req.user._id;
+
+    const note = await Note.findById(noteId).populate("owner", "name");
+    
+    if (!note) {
+      return res.status(404).json({ error: "Note not found." });
+    }
+
+    // Check if already liked
+    const index = note.likes.indexOf(userId);
+    let isLiked = false;
+
+    if (index === -1) {
+      // Like
+      note.likes.push(userId);
+      isLiked = true;
+
+      // Create notification for owner if not self-like
+      if (note.owner._id.toString() !== userId.toString()) {
+        try {
+          await notifications.createNotification({
+             recipient: note.owner._id,
+             type: "like",
+             title: "New Like",
+             message: `${req.user.name} liked your note "${note.title}"`,
+             link: `/notes?view=${note._id}`,
+             sender: userId
+          });
+        } catch (error) {
+           console.error("Notification error:", error);
+        }
+      }
+
+    } else {
+      // Unlike
+      note.likes.splice(index, 1);
+      isLiked = false;
+    }
+
+    await note.save();
+
+    res.json({ 
+      success: true, 
+      likes: note.likes.length, 
+      isLiked 
+    });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
