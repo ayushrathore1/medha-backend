@@ -1,11 +1,8 @@
 // controllers/noteController.js
 const Note = require("../models/Note");
+const User = require("../models/User");
 const mongoose = require("mongoose");
-const Notification = require("./notificationController"); // Use controller for creating notifications
-// Or better import the model directly if logic is simple, but reused notification controller Logic is safer.
-// Actually notificationController.createNotification is what I defined.
 const notifications = require("./notificationController");
-
 
 // List user's own notes (optionally filtered by subject)
 exports.getNotes = async (req, res) => {
@@ -19,6 +16,7 @@ exports.getNotes = async (req, res) => {
       }
       filter.subject = subject;
     }
+
 
     const notes = await Note.find(filter)
       .populate("owner", "name email")
@@ -284,11 +282,15 @@ exports.toggleLike = async (req, res) => {
       // Create notification for owner if not self-like
       if (note.owner._id.toString() !== userId.toString()) {
         try {
+          // Fetch liker's name since req.user might not have it populated
+          const liker = await User.findById(userId).select("name");
+          const likerName = liker ? liker.name : "Someone";
+          
           await notifications.createNotification({
              recipient: note.owner._id,
              type: "like",
              title: "New Like",
-             message: `${req.user.name} liked your note "${note.title}"`,
+             message: `${likerName} liked your note "${note.title}"`,
              link: `/notes?view=${note._id}`,
              sender: userId
           });
