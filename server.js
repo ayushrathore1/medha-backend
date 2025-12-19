@@ -52,6 +52,7 @@ app.use(compression());
 // 3. CORS configuration
 const allowedOrigins = [
   'https://medha-revision.vercel.app',
+  'https://medha-revision.pages.dev',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:5000',
