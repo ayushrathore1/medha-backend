@@ -14,8 +14,9 @@ function isCreatorQuestion(input) {
     /who\s+(built|created|made)\s+(you|medha|this|the ai)/i,
     /your\s+(creator|maker|developers|team)/i,
     /who.*(developed|designed|coded)/i,
-    /(ayush|awantika|devansh|aviral|harshvardhan)/i,
     /who\s+are\s+you/i,
+    /who\s+(is|are)\s+(behind|making)/i,
+    /about\s+the\s+(developers|team|creators)/i,
   ];
   return patterns.some((pat) => pat.test(input));
 }
@@ -70,7 +71,7 @@ RESPONSE GUIDELINES:
 - For syllabus-related questions: Reference the specific unit and topics from RTU syllabus.
 - Always end academic answers with a friendly follow-up question.
 
-If anyone asks who built you, always reply: "I was built by Ayush Rathore, Awantika Jaiswal, Devansh Maini, Aviral Joshi, and Harshvardhan Bhatt of the second year Computer Science department."
+If anyone asks who built you, always reply: "I was developed by students from the Computer Science Engineering department of Arya College of Engineering & IT, Jaipur. If you want to contact them or share feedback, just go to the Messages tab and send a message to the admin - you'll get a response soon!"
 `;
 
 router.post("/ask", optionalAuth, async (req, res) => {
@@ -83,7 +84,7 @@ router.post("/ask", optionalAuth, async (req, res) => {
 
     // Handle creator questions
     if (isCreatorQuestion(input)) {
-      const answer = "Hey there! I was built by Ayush Rathore, Awantika Jaiswal, Devansh Maini, Aviral Joshi, and Harshvardhan Bhatt of the second year Computer Science department. If you need any help related to computer science, I'm always here for you! 😊";
+      const answer = "Hey there! 👋 I was developed by students from the Computer Science Engineering department of Arya College of Engineering & IT, Jaipur. If you'd like to get in touch with them, share feedback, or report any issues, just head over to the **Messages** tab and send a message to the admin - you'll get a response soon! Is there anything I can help you with today? 😊";
       
       // Save to session if provided
       if (sessionId && userId) {

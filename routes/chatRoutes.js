@@ -107,9 +107,16 @@ router.post("/conversations/:id/messages", auth, async (req, res) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    // For regular users, check they can only message admin
+    // Get current user info
     const currentUser = await User.findById(req.userId);
-    if (!currentUser.isAdmin) {
+
+    // Non-admin users cannot send messages in broadcast/announcement conversations
+    if (conversation.isBroadcast && !currentUser.isAdmin) {
+      return res.status(403).json({ error: "Only admin can send messages in announcements" });
+    }
+
+    // For regular users in normal conversations, check they can only message admin
+    if (!currentUser.isAdmin && !conversation.isBroadcast) {
       const otherParticipant = conversation.participants.find(p => p.toString() !== req.userId.toString());
       const other = await User.findById(otherParticipant);
       if (!other?.isAdmin) {
@@ -360,6 +367,52 @@ router.post("/broadcast", auth, adminAuth, async (req, res) => {
   } catch (error) {
     console.error("Error broadcasting message:", error);
     res.status(500).json({ error: "Failed to broadcast message" });
+  }
+});
+
+// Delete a message (admin only)
+router.delete("/messages/:id", auth, adminAuth, async (req, res) => {
+  try {
+    const message = await ChatMessage.findById(req.params.id);
+    
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    const conversationId = message.conversation;
+
+    // Delete the message
+    await ChatMessage.findByIdAndDelete(req.params.id);
+
+    // Update the conversation's last message if this was the last one
+    const latestMessage = await ChatMessage.findOne({ conversation: conversationId })
+      .sort({ createdAt: -1 })
+      .populate("sender", "name")
+      .lean();
+
+    if (latestMessage) {
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessage: {
+          text: latestMessage.text.substring(0, 100),
+          sender: latestMessage.sender._id,
+          timestamp: latestMessage.createdAt,
+        }
+      });
+    } else {
+      // No messages left in conversation
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessage: {
+          text: "",
+          sender: null,
+          timestamp: new Date(),
+        }
+      });
+    }
+
+    res.json({ success: true, message: "Message deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting message:", error);
+    res.status(500).json({ error: "Failed to delete message" });
   }
 });
 

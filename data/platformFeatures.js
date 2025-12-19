@@ -23,8 +23,8 @@ KEY FEATURES:
    - Structured answers: Includes definitions, diagrams (descriptions), and bullet points suitable for exam marking schemes.
    - Organized by Semester, Subject, and Unit.
 
-3. DIRECT IMESSAGING (NEW)
-   - Direct line to Admins/Developers.
+3. DIRECT MESSAGING (NEW)
+   - Direct line to Admin for support and feedback.
    - Users can send Feedback, Feature Requests, or Bug Reports directly from the app.
    - Status tracking: Users can see if their feedback is "Pending", "In Progress", or "Resolved".
 
