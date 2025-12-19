@@ -4,7 +4,9 @@ const Quiz = require("../models/Quiz");
 const Flashcard = require("../models/Flashcard");
 const Note = require("../models/Note");
 const Topic = require("../models/Topic");
+const DailyQuote = require("../models/DailyQuote");
 const axios = require("axios");
+const { performWebSearch, formatSearchContext } = require("../utils/webSearch");
 
 // Get Dashboard Stats
 exports.getDashboardStats = async (req, res) => {
@@ -190,5 +192,133 @@ exports.getDailyPlan = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: "Error fetching daily plan" });
+  }
+};
+
+// Get Daily Inspirational Quote
+exports.getDailyQuote = async (req, res) => {
+  try {
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check if we already have a quote for today
+    let cachedQuote = await DailyQuote.findOne({ date: today });
+    
+    if (cachedQuote) {
+      return res.status(200).json({
+        quote: cachedQuote.quote,
+        author: cachedQuote.author,
+        source: cachedQuote.source,
+        cached: true,
+      });
+    }
+
+    // No cached quote - generate a new one using AI + Web Search
+    console.log("✨ Generating new daily quote for", today);
+    
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ message: "AI service not configured" });
+    }
+
+    // Perform web search for fresh inspirational quotes
+    const searchQueries = [
+      "inspirational quote of the day famous personalities",
+      "motivational quote APJ Abdul Kalam Swami Vivekananda",
+      "inspirational quotes from famous books",
+    ];
+    
+    // Pick a random search query for variety
+    const randomQuery = searchQueries[Math.floor(Math.random() * searchQueries.length)];
+    const searchResults = await performWebSearch(randomQuery, 3);
+    const webContext = formatSearchContext(searchResults);
+
+    // Use AI to generate/select a quote
+    const systemPrompt = `You are a curator of inspirational wisdom. Your task is to provide ONE powerful, motivational quote.
+
+QUOTE SOURCES (prioritize these):
+1. **Indian Leaders & Thinkers**: APJ Abdul Kalam, Swami Vivekananda, Mahatma Gandhi, Rabindranath Tagore, Chanakya, Sadhguru
+2. **World-Renowned Personalities**: Steve Jobs, Albert Einstein, Nelson Mandela, Oprah Winfrey, Elon Musk, Bill Gates
+3. **Famous Books**: Bhagavad Gita, The Alchemist, Atomic Habits, Think and Grow Rich, Man's Search for Meaning
+
+REQUIREMENTS:
+- The quote should inspire students and learners
+- Include the author/source
+- Keep the quote concise (1-3 sentences max)
+- Avoid clichéd or overused quotes - aim for something fresh
+
+${webContext}
+
+OUTPUT FORMAT (JSON only, no markdown):
+{"quote": "The actual quote text here", "author": "Person Name", "source": "Book/Speech/Context (optional, can be null)"}
+
+Return ONLY valid JSON, nothing else.`;
+
+    const aiRes = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: "Give me today's inspirational quote." }
+        ],
+        temperature: 0.9, // Higher for variety
+        max_tokens: 256,
+        response_format: { type: "json_object" },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      }
+    );
+
+    const aiContent = aiRes.data.choices[0]?.message?.content;
+    let quoteData;
+
+    try {
+      quoteData = JSON.parse(aiContent);
+    } catch (parseError) {
+      console.error("Failed to parse AI quote response:", aiContent);
+      // Fallback quote
+      quoteData = {
+        quote: "The only way to do great work is to love what you do.",
+        author: "Steve Jobs",
+        source: null,
+      };
+    }
+
+    // Save to database for caching
+    const newQuote = await DailyQuote.create({
+      quote: quoteData.quote,
+      author: quoteData.author,
+      source: quoteData.source || null,
+      date: today,
+    });
+
+    console.log("✅ New quote saved:", quoteData.author);
+
+    res.status(200).json({
+      quote: newQuote.quote,
+      author: newQuote.author,
+      source: newQuote.source,
+      cached: false,
+    });
+
+  } catch (err) {
+    console.error("Error fetching daily quote:", err.message);
+    if (err.response) {
+      console.error("API Error:", err.response.data);
+    }
+    
+    // Return a fallback quote on error
+    res.status(200).json({
+      quote: "Education is the most powerful weapon which you can use to change the world.",
+      author: "Nelson Mandela",
+      source: null,
+      fallback: true,
+    });
   }
 };

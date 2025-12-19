@@ -30,6 +30,7 @@ const userRoutes = require("./routes/userRoutes");
 const rtuRoutes = require("./routes/rtuRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 const { router: authExtraRoutes } = require("./routes/authExtraRoutes");
 
 const app = express();
@@ -158,6 +159,7 @@ app.use("/api/chat", chatHistoryRoutes);
 app.use("/api/ocr", aiLimiter, ocrRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/chats", chatRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Admin routes
 app.use("/api/admin", require("./routes/adminRoutes"));
