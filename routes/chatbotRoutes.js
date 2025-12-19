@@ -146,12 +146,17 @@ router.post("/ask", optionalAuth, async (req, res) => {
 
     // Build final system prompt with time, RAG context, and web search results
     const now = new Date();
+    // Force IST Timezone
+    const timeOptions = { timeZone: 'Asia/Kolkata', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+    const istDateString = now.toLocaleString('en-IN', timeOptions);
+    
+    // Parse it back or just use the string directly to avoid server timezone issues
     const timeContext = `
-[CURRENT DATE & TIME]
-Today is ${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
-Current time: ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}.
-Timezone: India Standard Time (IST).
-
+[CURRENT DATE & TIME (IST)]
+- Current moment: ${istDateString}
+- Timezone: Asia/Kolkata (Indian Standard Time)
+- NOTE: Strictly use this "Current moment" as the absolute truth for "now", "today", or "current time".
+- If the user asks for the time, report exactly based on the above value.
 `;
     const enhancedSystemPrompt = baseSystemPrompt + timeContext + (ragContext.fullContext || "") + webSearchContext;
 
@@ -271,9 +276,11 @@ router.post("/solve", optionalAuth, async (req, res) => {
 
     // Current time context
     const now = new Date();
+    const timeOptions = { timeZone: 'Asia/Kolkata', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const istDateString = now.toLocaleDateString('en-IN', timeOptions);
     const timeContext = `
-[CURRENT DATE & TIME]
-Today is ${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+[CURRENT DATE (IST)]
+Today is ${istDateString}.
 `;
 
     // Exam solution prompt

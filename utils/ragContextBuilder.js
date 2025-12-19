@@ -10,6 +10,7 @@ const Note = require("../models/Note");
 const Todo = require("../models/Todo");
 const Topic = require("../models/Topic");
 const Subject = require("../models/Subject");
+const ExamAnalysis = require("../models/ExamAnalysis");
 
 /**
  * Extracts keywords from user query for syllabus matching
@@ -200,12 +201,128 @@ async function buildRAGContext(userId, userQuery) {
       }
     }
 
-    // 5. Combine all context
+    // 6. Chat History Memory (Long-term memory)
+    // Import ChatSession dynamically to avoid circular dependencies if any
+    const ChatSession = require("../models/ChatSession");
+    if (userId) {
+      const recentSessions = await ChatSession.find({ user: userId })
+        .sort({ updatedAt: -1 })
+        .limit(3)
+        .select("title messages")
+        .lean();
+
+      if (recentSessions.length > 0) {
+        const historySummary = recentSessions.map(session => {
+          // Get the last interaction from this session
+          const lastMsgs = session.messages.slice(-2); 
+          const summary = lastMsgs.map(m => `${m.role === 'user' ? 'User' : 'Medha'}: ${m.content.substring(0, 100)}...`).join("\n  ");
+          return `- Topic: "${session.title}"\n  ${summary}`;
+        }).join("\n");
+        
+        context.historyContext = `[RECENT CONVERSATION MEMORY]\n${historySummary}\n`;
+      }
+    }
+
+    // 7. RTU Exam Schedule (Static Data)
+    const rtuExamSchedule = `
+[RTU 3rd SEM EXAM SCHEDULE (Jan 2026)]
+- 2nd Jan 2026: AEM (Advanced Engineering Mathematics)
+- 5th Jan 2026: MEFA (Managerial Economics and Financial Accounting)
+- 7th Jan 2026: DE (Digital Electronics)
+- 9th Jan 2026: DSA (Data Structures and Algorithms)
+- 13th Jan 2026: OOPS (Object Oriented Programming)
+- 15th Jan 2026: SE (Software Engineering)
+`;
+
+    // 8. RTU Exam Weightage Data (Dynamic - based on mentioned subject)
+    // Detect if the user query mentions any subject
+    const subjectKeywords = {
+      "aem": "Advanced Engineering Mathematics",
+      "advanced engineering mathematics": "Advanced Engineering Mathematics",
+      "mathematics": "Advanced Engineering Mathematics",
+      "mefa": "Managerial Economics and Financial Accounting",
+      "managerial economics": "Managerial Economics and Financial Accounting",
+      "financial accounting": "Managerial Economics and Financial Accounting",
+      "de": "Digital Electronics",
+      "digital electronics": "Digital Electronics",
+      "electronics": "Digital Electronics",
+      "dsa": "Data Structures and Algorithms",
+      "data structures": "Data Structures and Algorithms",
+      "algorithms": "Data Structures and Algorithms",
+      "oops": "Object Oriented Programming",
+      "object oriented": "Object Oriented Programming",
+      "oop": "Object Oriented Programming",
+      "se": "Software Engineering",
+      "software engineering": "Software Engineering",
+      "tc": "Technical Communication",
+      "technical communication": "Technical Communication",
+    };
+    
+    const queryLower = userQuery.toLowerCase();
+    let mentionedSubject = null;
+    for (const [keyword, subjectName] of Object.entries(subjectKeywords)) {
+      if (queryLower.includes(keyword)) {
+        mentionedSubject = subjectName;
+        break;
+      }
+    }
+    
+    let examWeightageContext = "";
+    if (mentionedSubject) {
+      try {
+        const examData = await ExamAnalysis.findOne({ subjectName: mentionedSubject }).lean();
+        
+        if (examData && examData.years && examData.years.length > 0) {
+          let weightageInfo = `\n[EXAM WEIGHTAGE DATA: ${mentionedSubject}]\n`;
+          weightageInfo += `Total Paper Marks: ${examData.totalPaperMarks}\n\n`;
+          
+          // Sort years descending (most recent first)
+          const sortedYears = examData.years
+            .filter(y => y.units && y.units.length > 0)
+            .sort((a, b) => b.year - a.year)
+            .slice(0, 3); // Show last 3 years
+          
+          for (const yearData of sortedYears) {
+            weightageInfo += `Year ${yearData.year}:\n`;
+            
+            // Sort units by marks (highest first)
+            const sortedUnits = [...yearData.units].sort((a, b) => b.totalMarks - a.totalMarks);
+            
+            for (const unit of sortedUnits) {
+              const percentage = ((unit.totalMarks / examData.totalPaperMarks) * 100).toFixed(1);
+              weightageInfo += `  - Unit ${unit.unitSerial} (${unit.unitName}): ${unit.totalMarks} marks (${percentage}%)\n`;
+            }
+            
+            // Highlight highest priority unit
+            if (sortedUnits.length > 0) {
+              const topUnit = sortedUnits[0];
+              weightageInfo += `  → HIGHEST PRIORITY: Unit ${topUnit.unitSerial} (${topUnit.unitName}) with ${topUnit.totalMarks} marks\n`;
+            }
+            weightageInfo += "\n";
+          }
+          
+          // Add study advice
+          weightageInfo += `STUDY ADVICE for ${mentionedSubject}:\n`;
+          weightageInfo += `- Focus on units with consistently higher marks across years.\n`;
+          weightageInfo += `- The unit with highest marks should be your TOP priority.\n`;
+          weightageInfo += `- Don't skip any unit, but allocate time proportionally to marks weightage.\n`;
+          
+          examWeightageContext = weightageInfo;
+        }
+      } catch (err) {
+        console.error("Error fetching exam weightage:", err);
+      }
+    }
+
+    // 9. Combine all context
     const contextParts = [
       context.userContext,
+      rtuExamSchedule,
+      examWeightageContext,
       context.syllabusContext,
       context.learningContext,
       context.tasksContext,
+      context.historyContext,
     ].filter(Boolean);
 
     if (contextParts.length > 0) {
@@ -214,7 +331,11 @@ async function buildRAGContext(userId, userQuery) {
 ${contextParts.join("\n")}
 === END OF CONTEXT ===
 
-Use the above context to provide personalized, relevant answers. Reference specific syllabus topics, user's progress, or tasks when applicable.
+Use the above context to provide personalized, relevant answers. 
+- You have access to the user's recent conversation topics; reference them if relevant to show continuity.
+- You know the RTU 3rd Sem Exam Schedule; remind them of upcoming exams if they ask about dates or planning.
+- When a subject is mentioned, USE THE EXAM WEIGHTAGE DATA to advise which units have higher marks historically and should be prioritized.
+- Reference specific syllabus topics, user's progress, or tasks when applicable.
 `;
     }
 
