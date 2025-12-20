@@ -28,13 +28,16 @@ router.get("/me", auth, async (req, res, next) => {
 router.patch("/me", auth, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const { name, college, year, branch, avatar } = req.body;
+    const { name, college, university, year, branch, gender, avatar, avatarIndex } = req.body;
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (college !== undefined) updates.college = college;
+    if (university !== undefined) updates.university = university;
     if (year !== undefined) updates.year = year;
     if (branch !== undefined) updates.branch = branch;
+    if (gender !== undefined) updates.gender = gender;
     if (avatar !== undefined) updates.avatar = avatar;
+    if (avatarIndex !== undefined) updates.avatarIndex = avatarIndex;
 
     const user = await User.findByIdAndUpdate(userId, updates, {
       new: true,

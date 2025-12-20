@@ -1,6 +1,7 @@
 /**
  * RAG Context Builder for Medha Chatbot
  * Fetches relevant context from MongoDB to inject into AI prompts
+ * Now with dynamic university/branch support
  */
 
 const User = require("../models/User");
@@ -11,6 +12,7 @@ const Todo = require("../models/Todo");
 const Topic = require("../models/Topic");
 const Subject = require("../models/Subject");
 const ExamAnalysis = require("../models/ExamAnalysis");
+const UniversityContext = require("../models/UniversityContext");
 
 /**
  * Extracts keywords from user query for syllabus matching
@@ -67,6 +69,28 @@ async function searchSyllabus(keywords) {
 }
 
 /**
+ * Detects mentioned subject based on dynamic subject keywords
+ */
+function detectMentionedSubject(query, subjects) {
+  const queryLower = query.toLowerCase();
+  
+  for (const subject of subjects) {
+    // Check each keyword for this subject
+    for (const keyword of subject.keywords || []) {
+      if (queryLower.includes(keyword.toLowerCase())) {
+        return subject.name;
+      }
+    }
+    // Also check code
+    if (subject.code && queryLower.includes(subject.code.toLowerCase())) {
+      return subject.name;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Builds complete RAG context for the chatbot
  * @param {string|null} userId - User ID from JWT (null if unauthenticated)
  * @param {string} userQuery - The user's question
@@ -79,17 +103,28 @@ async function buildRAGContext(userId, userQuery) {
     learningContext: "",
     tasksContext: "",
     fullContext: "",
+    universityContext: null, // Store the university context object
   };
 
   try {
-    // 1. User Profile Context (including daily plan)
+    // Variables for dynamic context
+    let userUniversity = null;
+    let userBranch = null;
+    let universityContextData = null;
+
+    // 1. User Profile Context (including daily plan and university/branch)
     if (userId) {
       const user = await User.findById(userId).lean();
       if (user) {
+        userUniversity = user.university;
+        userBranch = user.branch;
+        
         const userInfo = [];
         userInfo.push(`Name: ${user.name}`);
+        if (user.university) userInfo.push(`University: ${user.university}`);
         if (user.college) userInfo.push(`College: ${user.college}`);
         if (user.branch) userInfo.push(`Branch: ${user.branch}`);
+        if (user.gender) userInfo.push(`Gender: ${user.gender}`);
         if (user.year) userInfo.push(`Year: ${user.year}`);
         if (user.streak > 0) userInfo.push(`Study Streak: ${user.streak} days`);
         
@@ -108,18 +143,38 @@ async function buildRAGContext(userId, userQuery) {
       }
     }
 
-    // 2. Syllabus Context (based on query keywords)
+    // 2. Fetch University Context from Database
+    if (userUniversity) {
+      universityContextData = await UniversityContext.findForUser(
+        userUniversity, 
+        userBranch || "ALL",
+        "3" // Default to 3rd semester for now
+      );
+    }
+    
+    // Fallback to generic context if no specific context found
+    if (!universityContextData) {
+      universityContextData = await UniversityContext.findOne({ 
+        university: "OTHER", 
+        isActive: true 
+      });
+    }
+    
+    context.universityContext = universityContextData;
+
+    // 3. Syllabus Context (based on query keywords)
     const keywords = extractKeywords(userQuery);
     const matchedSyllabus = await searchSyllabus(keywords);
     
     if (matchedSyllabus.length > 0) {
+      const universityLabel = userUniversity || "University";
       const syllabusLines = matchedSyllabus.map(match => 
         `- ${match.subject} (Unit ${match.unitNumber}: ${match.unitTitle}): ${match.topics.join(", ")}`
       );
-      context.syllabusContext = `[RELEVANT SYLLABUS FROM RTU]\n${syllabusLines.join("\n")}\n`;
+      context.syllabusContext = `[RELEVANT SYLLABUS FROM ${universityLabel}]\n${syllabusLines.join("\n")}\n`;
     }
 
-    // 3. User's Learning Context (subjects, flashcards, topics to review)
+    // 4. User's Learning Context (subjects, flashcards, topics to review)
     if (userId) {
       // Get user's subjects
       const subjects = await Subject.find({ owner: userId }).lean();
@@ -181,14 +236,14 @@ async function buildRAGContext(userId, userQuery) {
       }
     }
 
-    // 4. Available RTU Exam Subjects
-    const allSyllabi = await Syllabus.find({}).select("subjectName subjectCode").lean();
-    if (allSyllabi.length > 0) {
-      const examSubjects = allSyllabi.map(s => `${s.subjectName} (${s.subjectCode})`).join(", ");
-      context.syllabusContext += `\n[AVAILABLE RTU EXAM SUBJECTS]\n${examSubjects}\n`;
+    // 5. Available Exam Subjects from Database Context
+    if (universityContextData && universityContextData.subjects && universityContextData.subjects.length > 0) {
+      const examSubjects = universityContextData.subjects.map(s => `${s.name} (${s.code})`).join(", ");
+      const universityLabel = universityContextData.universityFullName || userUniversity || "University";
+      context.syllabusContext += `\n[AVAILABLE ${userUniversity || "EXAM"} SUBJECTS]\n${examSubjects}\n`;
     }
 
-    // 5. User's Tasks Context
+    // 6. User's Tasks Context
     if (userId) {
       const todos = await Todo.find({ user: userId, isCompleted: false })
         .sort({ createdAt: -1 })
@@ -201,8 +256,7 @@ async function buildRAGContext(userId, userQuery) {
       }
     }
 
-    // 6. Chat History Memory (Long-term memory)
-    // Import ChatSession dynamically to avoid circular dependencies if any
+    // 7. Chat History Memory (Long-term memory)
     const ChatSession = require("../models/ChatSession");
     if (userId) {
       const recentSessions = await ChatSession.find({ user: userId })
@@ -223,51 +277,25 @@ async function buildRAGContext(userId, userQuery) {
       }
     }
 
-    // 7. RTU Exam Schedule (Static Data)
-    const rtuExamSchedule = `
-[RTU 3rd SEM EXAM SCHEDULE (Jan 2026)]
-- 2nd Jan 2026: AEM (Advanced Engineering Mathematics)
-- 5th Jan 2026: MEFA (Managerial Economics and Financial Accounting)
-- 7th Jan 2026: DE (Digital Electronics)
-- 9th Jan 2026: DSA (Data Structures and Algorithms)
-- 13th Jan 2026: OOPS (Object Oriented Programming)
-- 15th Jan 2026: SE (Software Engineering)
-`;
-
-    // 8. RTU Exam Weightage Data (Dynamic - based on mentioned subject)
-    // Detect if the user query mentions any subject
-    const subjectKeywords = {
-      "aem": "Advanced Engineering Mathematics",
-      "advanced engineering mathematics": "Advanced Engineering Mathematics",
-      "mathematics": "Advanced Engineering Mathematics",
-      "mefa": "Managerial Economics and Financial Accounting",
-      "managerial economics": "Managerial Economics and Financial Accounting",
-      "financial accounting": "Managerial Economics and Financial Accounting",
-      "de": "Digital Electronics",
-      "digital electronics": "Digital Electronics",
-      "electronics": "Digital Electronics",
-      "dsa": "Data Structures and Algorithms",
-      "data structures": "Data Structures and Algorithms",
-      "algorithms": "Data Structures and Algorithms",
-      "oops": "Object Oriented Programming",
-      "object oriented": "Object Oriented Programming",
-      "oop": "Object Oriented Programming",
-      "se": "Software Engineering",
-      "software engineering": "Software Engineering",
-      "tc": "Technical Communication",
-      "technical communication": "Technical Communication",
-    };
-    
-    const queryLower = userQuery.toLowerCase();
-    let mentionedSubject = null;
-    for (const [keyword, subjectName] of Object.entries(subjectKeywords)) {
-      if (queryLower.includes(keyword)) {
-        mentionedSubject = subjectName;
-        break;
+    // 8. Dynamic Exam Schedule from Database
+    let examScheduleContext = "";
+    if (universityContextData && universityContextData.examSchedule && universityContextData.examSchedule.length > 0) {
+      const universityLabel = universityContextData.universityFullName || userUniversity || "University";
+      const semLabel = universityContextData.semester !== "ALL" ? ` ${universityContextData.semester}th SEM` : "";
+      
+      examScheduleContext = `\n[${userUniversity || "UNIVERSITY"}${semLabel} EXAM SCHEDULE]\n`;
+      for (const exam of universityContextData.examSchedule) {
+        examScheduleContext += `- ${exam.date}: ${exam.subject} (${exam.subjectCode})\n`;
       }
     }
-    
+
+    // 9. Exam Weightage Data (Dynamic - based on mentioned subject)
     let examWeightageContext = "";
+    
+    // Get subjects for matching from database context
+    const subjectsForMatching = universityContextData?.subjects || [];
+    const mentionedSubject = detectMentionedSubject(userQuery, subjectsForMatching);
+    
     if (mentionedSubject) {
       try {
         const examData = await ExamAnalysis.findOne({ subjectName: mentionedSubject }).lean();
@@ -314,10 +342,17 @@ async function buildRAGContext(userId, userQuery) {
       }
     }
 
-    // 9. Combine all context
+    // 10. Custom system prompt additions from database
+    let customPromptAdditions = "";
+    if (universityContextData && universityContextData.systemPromptAdditions) {
+      customPromptAdditions = `\n[UNIVERSITY-SPECIFIC CONTEXT]\n${universityContextData.systemPromptAdditions}\n`;
+    }
+
+    // 11. Combine all context
     const contextParts = [
       context.userContext,
-      rtuExamSchedule,
+      customPromptAdditions,
+      examScheduleContext,
       examWeightageContext,
       context.syllabusContext,
       context.learningContext,
@@ -326,16 +361,18 @@ async function buildRAGContext(userId, userQuery) {
     ].filter(Boolean);
 
     if (contextParts.length > 0) {
+      const universityLabel = userUniversity || "this user";
       context.fullContext = `
-=== PERSONALIZED CONTEXT FOR THIS USER ===
+=== PERSONALIZED CONTEXT FOR ${universityLabel.toUpperCase()} STUDENT ===
 ${contextParts.join("\n")}
 === END OF CONTEXT ===
 
 Use the above context to provide personalized, relevant answers. 
 - You have access to the user's recent conversation topics; reference them if relevant to show continuity.
-- You know the RTU 3rd Sem Exam Schedule; remind them of upcoming exams if they ask about dates or planning.
+- If exam schedule is available, remind them of upcoming exams if they ask about dates or planning.
 - When a subject is mentioned, USE THE EXAM WEIGHTAGE DATA to advise which units have higher marks historically and should be prioritized.
 - Reference specific syllabus topics, user's progress, or tasks when applicable.
+- Adapt your responses to the user's university context.
 `;
     }
 
@@ -348,3 +385,4 @@ Use the above context to provide personalized, relevant answers.
 }
 
 module.exports = { buildRAGContext, extractKeywords, searchSyllabus };
+

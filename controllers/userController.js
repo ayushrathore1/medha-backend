@@ -15,13 +15,15 @@ exports.getProfile = async (req, res) => {
 // Update the current user's profile (no password update here)
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, college, branch, year, avatar } = req.body;
+    const { name, college, university, branch, year, gender, avatar } = req.body;
     const updateFields = {};
 
     if (name) updateFields.name = name;
     if (college) updateFields.college = college;
+    if (university) updateFields.university = university;
     if (branch) updateFields.branch = branch;
     if (year) updateFields.year = year;
+    if (gender) updateFields.gender = gender;
     if (avatar) updateFields.avatar = avatar;
 
     const user = await User.findByIdAndUpdate(

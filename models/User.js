@@ -25,6 +25,11 @@ const userSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    university: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     branch: {
       type: String,
       default: "",
@@ -35,9 +40,20 @@ const userSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    gender: {
+      type: String,
+      enum: ["", "Male", "Female", "Other"],
+      default: "",
+    },
     avatar: {
       type: String, // URL to profile picture
       default: "",
+    },
+    avatarIndex: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 19,
     },
     streak: {
       type: Number,

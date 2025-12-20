@@ -164,6 +164,9 @@ app.use("/api/notifications", notificationRoutes);
 // Admin routes
 app.use("/api/admin", require("./routes/adminRoutes"));
 
+// Seed routes (for populating database)
+app.use("/api/seed", require("./routes/seedRoutes"));
+
 // ============================================
 // ERROR HANDLING
 // ============================================

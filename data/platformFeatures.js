@@ -43,7 +43,29 @@ KEY FEATURES:
    - AI generates a personalized daily study plan based on user's semester and remaining syllabus.
    - To-Do list integration for tracking daily tasks.
 
-7. ADMIN TOOLS
+7. DYNAMIC UNIVERSITY EXAMS TAB (NEW - Dec 2024)
+   - Navbar shows "[Your University] Exams" based on profile (e.g., "RTU Exams", "GGSIPU Exams").
+   - Full exam content for RTU CSE and AIDS students.
+   - Beautiful "Coming Soon" page for other universities with feature previews.
+
+8. PERSONALIZED CHATBOT CONTEXT (NEW - Dec 2024)
+   - AI adapts responses based on user's university and branch.
+   - Shows relevant exam schedules and subjects for each university.
+   - Dynamic context stored in database - easy to add new universities.
+
+9. RICH CHATBOT RESPONSES (NEW - Dec 2024)
+   - Beautiful markdown rendering with colors and formatting.
+   - Code blocks with syntax highlighting and language labels.
+   - Styled tables with gradient headers.
+   - Semantic text coloring: success (green), error (red), warnings (amber).
+   - Blockquotes, lists, and headings with distinct styles.
+
+10. EDIT & REGENERATE MESSAGES (NEW - Dec 2024)
+    - Edit any message: Click "Edit" to modify and resend.
+    - Regenerate responses: Get a fresh AI answer with one click.
+    - Full control over conversation flow.
+
+11. ADMIN TOOLS
    - Email Console for announcements.
    - User analytics and feedback management.
 
