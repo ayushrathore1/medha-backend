@@ -59,7 +59,7 @@ exports.login = async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ message: "All fields are required." });
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+password');
     if (!user)
       return res.status(401).json({ message: "Invalid email or password." });
 
@@ -106,6 +106,10 @@ exports.login = async (req, res) => {
         name: user.name,
         email: user.email,
         streak: user.streak,
+        university: user.university,
+        branch: user.branch,
+        gender: user.gender,
+        isAdmin: user.isAdmin,
       },
       token,
     });

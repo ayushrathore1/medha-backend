@@ -6,6 +6,18 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 
+// @route   GET /api/users/stats
+// @desc    Get public stats (total users) for welcome page
+// @access  Public
+router.get("/stats", async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    res.json({ totalUsers });
+  } catch (err) {
+    res.status(500).json({ totalUsers: 0 });
+  }
+});
+
 // @route   GET /api/users/me
 // @desc    Get current logged-in user's profile (excluding password)
 // @access  Private
@@ -17,6 +29,24 @@ router.get("/me", auth, async (req, res, next) => {
       return res.status(404).json({ message: "User not found" });
     }
     res.json(user);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// @route   GET /api/users/activity-history
+// @desc    Get user's activity history for calendar display
+// @access  Private
+router.get("/activity-history", auth, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.userId).select("activityHistory streak");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({ 
+      activityHistory: user.activityHistory || [],
+      streak: user.streak || 0
+    });
   } catch (err) {
     next(err);
   }

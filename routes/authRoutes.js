@@ -98,6 +98,47 @@ router.post("/login", async (req, res, next) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    // Streak Logic - calculate and update based on login date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let streak = user.streak || 0;
+    let lastActive = user.lastActiveDate ? new Date(user.lastActiveDate) : null;
+    
+    if (lastActive) {
+      lastActive.setHours(0, 0, 0, 0);
+      const diffTime = Math.abs(today - lastActive);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        // Consecutive day - increment streak
+        streak += 1;
+      } else if (diffDays > 1) {
+        // Missed a day or more - reset streak
+        streak = 1;
+      }
+      // If diffDays === 0 (same day), keep current streak
+    } else {
+      // First time login or no previous record
+      streak = 1;
+    }
+
+    // Update user with new streak and last active date
+    user.streak = streak;
+    user.lastActiveDate = new Date();
+    
+    // Record activity for calendar - add today if not already logged
+    const todayStr = today.toISOString().split('T')[0];
+    const alreadyLogged = user.activityHistory?.some(
+      d => d.toISOString().split('T')[0] === todayStr
+    );
+    if (!alreadyLogged) {
+      user.activityHistory = user.activityHistory || [];
+      user.activityHistory.push(today);
+    }
+    
+    await user.save();
+
     const payload = { userId: user._id, email: user.email };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 
@@ -108,6 +149,11 @@ router.post("/login", async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        university: user.university,
+        branch: user.branch,
+        gender: user.gender,
+        isAdmin: user.isAdmin,
+        streak: user.streak,
       },
     });
   } catch (err) {

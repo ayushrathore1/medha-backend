@@ -63,6 +63,9 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    activityHistory: [{
+      type: Date,
+    }],
     dailyPlan: {
       type: String,
       default: "",
