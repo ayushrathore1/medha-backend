@@ -5,7 +5,7 @@ const { sendEmail } = require("../utils/sendEmail");
 // Get all users with relevant fields
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("name email createdAt").lean();
+    const users = await User.find().select("name email emailVerified university createdAt").lean();
     res.json(users);
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -13,10 +13,10 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// Send email to users (All or Individual)
+// Send email to users (All, Individual, or Unverified)
 exports.sendAdminEmail = async (req, res) => {
   const { mode, targetUserId, subject, htmlBody } = req.body;
-  // mode: 'all' | 'individual'
+  // mode: 'all' | 'individual' | 'unverified'
 
   if (!subject || !htmlBody) {
     return res.status(400).json({ message: "Subject and Body are required." });
@@ -37,8 +37,14 @@ exports.sendAdminEmail = async (req, res) => {
       usersToSend = [user];
     } else if (mode === "all") {
       usersToSend = await User.find({ email: { $exists: true, $ne: null } }).select("name email");
+    } else if (mode === "unverified") {
+      // Only send to users with emailVerified = false or undefined
+      usersToSend = await User.find({ 
+        email: { $exists: true, $ne: null },
+        $or: [{ emailVerified: false }, { emailVerified: { $exists: false } }]
+      }).select("name email");
     } else {
-      return res.status(400).json({ message: "Invalid mode." });
+      return res.status(400).json({ message: "Invalid mode. Use 'all', 'individual', or 'unverified'." });
     }
 
     // 2. Log History
