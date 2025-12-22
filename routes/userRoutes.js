@@ -147,4 +147,70 @@ router.post("/increment-notification-view", auth, async (req, res, next) => {
   }
 });
 
+// @route   POST /api/users/verify-email
+// @desc    Mark user's email as verified (after Clerk verification for existing users)
+// @access  Private
+router.post("/verify-email", auth, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Mark email as verified
+    user.emailVerified = true;
+    if (req.body.clerkUserId) {
+      user.clerkUserId = req.body.clerkUserId;
+    }
+    await user.save();
+
+    console.log("✅ Email verified for user:", user.email);
+
+    res.json({ 
+      success: true, 
+      message: "Email verified successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      }
+    });
+  } catch (err) {
+    console.error("Email verification error:", err);
+    next(err);
+  }
+});
+
+// @route   DELETE /api/users/me
+// @desc    Delete user account permanently
+// @access  Private
+router.delete("/me", auth, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Find and delete the user
+    const user = await User.findByIdAndDelete(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log("🗑️ Account deleted for user:", user.email);
+
+    // Here you could also clean up related data:
+    // - Delete user's notes
+    // - Delete user's chat history
+    // - etc.
+
+    res.json({ 
+      success: true, 
+      message: "Account deleted successfully" 
+    });
+  } catch (err) {
+    console.error("Account deletion error:", err);
+    next(err);
+  }
+});
+
 module.exports = router;

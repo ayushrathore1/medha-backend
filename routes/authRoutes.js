@@ -13,7 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 // @desc      Register a new user (alias of /signup)
 router.post("/register", async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, emailVerified, clerkUserId } = req.body;
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -34,10 +34,13 @@ router.post("/register", async (req, res, next) => {
       name,
       email,
       password: hashedPassword,
+      // Clerk integration fields (optional - defaults to false/null if not provided)
+      emailVerified: emailVerified === true,
+      clerkUserId: clerkUserId || null,
     });
 
     await user.save();
-    console.log("✅ User saved to database:", user.email);
+    console.log("✅ User saved to database:", user.email, emailVerified ? "(email verified via Clerk)" : "");
 
     // Send welcome email - improved error handling
     sendWelcomeEmail(user)
@@ -60,6 +63,7 @@ router.post("/register", async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        emailVerified: user.emailVerified || false,
       },
     });
   } catch (err) {
@@ -154,6 +158,7 @@ router.post("/login", async (req, res, next) => {
         gender: user.gender,
         isAdmin: user.isAdmin,
         streak: user.streak,
+        emailVerified: user.emailVerified || false,
       },
     });
   } catch (err) {

@@ -86,6 +86,17 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Note",
     }],
+    // Clerk integration fields
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    clerkUserId: {
+      type: String,
+      sparse: true,
+      unique: true,
+      default: null,
+    },
   },
   {
     timestamps: true, // adds createdAt, updatedAt
