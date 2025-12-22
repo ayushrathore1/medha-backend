@@ -188,6 +188,7 @@ router.post("/verify-email", auth, async (req, res, next) => {
 router.delete("/me", auth, async (req, res, next) => {
   try {
     const userId = req.user.userId;
+    const { reason } = req.body || {};
     
     // Find and delete the user
     const user = await User.findByIdAndDelete(userId);
@@ -196,12 +197,17 @@ router.delete("/me", auth, async (req, res, next) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log("🗑️ Account deleted for user:", user.email);
+    // Log deletion with reason for analytics
+    console.log("🗑️ Account deleted:", {
+      email: user.email,
+      reason: reason || "No reason provided",
+      deletedAt: new Date().toISOString()
+    });
 
-    // Here you could also clean up related data:
-    // - Delete user's notes
-    // - Delete user's chat history
-    // - etc.
+    // Here you could also:
+    // - Store reason in a separate analytics collection
+    // - Send the reason to an analytics service
+    // - Delete user's notes, chat history, etc.
 
     res.json({ 
       success: true, 
