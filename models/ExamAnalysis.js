@@ -3,7 +3,9 @@ const mongoose = require('mongoose');
 const QuestionSchema = new mongoose.Schema({
   qCode: { type: String, required: true },
   marks: { type: Number, required: true },
-  text: { type: String, required: true } // HTML string
+  text: { type: String, required: true }, // HTML string
+  imageUrl: { type: String, default: null }, // ImageKit URL for question image
+  imageFileId: { type: String, default: null } // ImageKit file ID for deletion
 });
 
 const UnitSchema = new mongoose.Schema({

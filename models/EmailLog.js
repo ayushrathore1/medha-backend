@@ -18,6 +18,10 @@ const emailLogSchema = new mongoose.Schema(
       type: Number,
       default: 0, // Total number of individual users reached across all sends
     },
+    recipients: {
+      type: [String], // Array of email addresses who received this email
+      default: [],
+    },
     lastSentAt: {
       type: Date,
       default: Date.now,

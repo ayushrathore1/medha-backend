@@ -4,9 +4,22 @@ const axios = require("axios");
 const jwt = require("jsonwebtoken");
 const { buildRAGContext } = require("../utils/ragContextBuilder");
 const { needsWebSearch, performWebSearch, formatSearchContext } = require("../utils/webSearch");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "YOUR_GROQ_API_KEY_HERE";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const JWT_SECRET = process.env.JWT_SECRET || "853f32a2825ea94c1586147858f09663a1fcc51d926d7cbfc5440d67fbe80dc30ac1f805ef9bcf8699dffbc31e4505bcb345543c771e0272eabd0a4d011216ec";
+
+// Initialize Gemini client
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+console.log(`🔧 Gemini API: ${genAI ? '✅ Configured' : '❌ Not configured (GEMINI_API_KEY missing)'}`);
+
+// Supported AI models
+const SUPPORTED_MODELS = {
+  groq: { name: "Groq (Llama 3)", model: "llama-3.3-70b-versatile" },
+  gemini: { name: "Gemini", model: "gemini-2.0-pro-exp" }
+};
+
 
 // Detect "who built you" (case-insensitive fuzzy matching)
 function isCreatorQuestion(input) {
@@ -76,10 +89,58 @@ RESPONSE GUIDELINES:
 If anyone asks who built you, always reply: "I was developed by students from the Computer Science Engineering department of Arya College of Engineering & IT, Jaipur. If you want to contact them or share feedback, just go to the Messages tab and send a message to the admin - you'll get a response soon!"
 `;
 
+// Helper function to call Gemini API
+async function callGeminiAPI(systemPrompt, messages, maxTokens = 1000) {
+  if (!genAI) {
+    throw new Error("Gemini API key not configured");
+  }
+
+  const model = genAI.getGenerativeModel({ 
+    model: SUPPORTED_MODELS.gemini.model,
+    systemInstruction: systemPrompt
+  });
+
+  // Convert messages to Gemini format (history + current message)
+  const history = [];
+  let currentUserMessage = "";
+
+  for (const msg of messages) {
+    if (msg.role === "system") continue; // System is handled via systemInstruction
+    
+    if (msg.role === "user") {
+      currentUserMessage = msg.content;
+    } else if (msg.role === "assistant") {
+      // If we have a pending user message, add both to history
+      if (history.length > 0 || currentUserMessage) {
+        if (currentUserMessage) {
+          history.push({ role: "user", parts: [{ text: currentUserMessage }] });
+          currentUserMessage = "";
+        }
+        history.push({ role: "model", parts: [{ text: msg.content }] });
+      }
+    }
+  }
+
+  // Start chat with history
+  const chat = model.startChat({
+    history: history,
+    generationConfig: {
+      maxOutputTokens: maxTokens,
+      temperature: 0.7,
+    },
+  });
+
+  // Send the current user message
+  const result = await chat.sendMessage(currentUserMessage || messages[messages.length - 1].content);
+  return result.response.text();
+}
+
 router.post("/ask", optionalAuth, async (req, res) => {
   try {
-    const { input, contextMessages = [], sessionId } = req.body;
+    const { input, contextMessages = [], sessionId, model: selectedModel = "groq" } = req.body;
     const userId = req.userId;
+
+    console.log(`🎯 Model selected: ${selectedModel} | Gemini available: ${!!genAI}`);
 
     // Import ChatSession model for saving messages
     const ChatSession = require("../models/ChatSession");
@@ -163,33 +224,62 @@ router.post("/ask", optionalAuth, async (req, res) => {
 `;
     const enhancedSystemPrompt = baseSystemPrompt + timeContext + (ragContext.fullContext || "") + webSearchContext;
 
-    const model = "llama-3.3-70b-versatile";
     const messages = [
       { role: "system", content: enhancedSystemPrompt },
       ...mappedContext,
       { role: "user", content: input },
     ];
 
-    console.log("🤖 Sending request to Groq AI...");
+    let aiText = "";
+    const maxTokens = isDetailedRequest(input) ? 1500 : 700;
 
-    const groqRes = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model,
-        messages,
-        max_tokens: isDetailedRequest(input) ? 1500 : 700,
-        temperature: 0.7,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 60000,
+    // Route to selected AI provider
+    if (selectedModel === "gemini" && genAI) {
+      console.log("🤖 Sending request to Gemini AI...");
+      try {
+        aiText = await callGeminiAPI(enhancedSystemPrompt, messages, maxTokens);
+      } catch (geminiError) {
+        console.error("❌ Gemini API error, falling back to Groq:", geminiError.message);
+        // Fall back to Groq if Gemini fails
+        const groqRes = await axios.post(
+          "https://api.groq.com/openai/v1/chat/completions",
+          {
+            model: SUPPORTED_MODELS.groq.model,
+            messages,
+            max_tokens: maxTokens,
+            temperature: 0.7,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${GROQ_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 60000,
+          }
+        );
+        aiText = groqRes.data.choices[0].message.content;
       }
-    );
+    } else {
+      console.log("🤖 Sending request to Groq AI...");
+      const groqRes = await axios.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          model: SUPPORTED_MODELS.groq.model,
+          messages,
+          max_tokens: maxTokens,
+          temperature: 0.7,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${GROQ_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 60000,
+        }
+      );
+      aiText = groqRes.data.choices[0].message.content;
+    }
 
-    let aiText = groqRes.data.choices[0].message.content;
 
     // Add friendly follow-up for academic answers
     if (
@@ -255,7 +345,7 @@ router.post("/ask", optionalAuth, async (req, res) => {
 // Solve endpoint for exam questions
 router.post("/solve", optionalAuth, async (req, res) => {
   try {
-    const { question, subject, unit, marks } = req.body;
+    const { question, subject, unit, marks, model: selectedModel = "groq" } = req.body;
     const userId = req.userId;
 
     if (!question) {
@@ -263,6 +353,7 @@ router.post("/solve", optionalAuth, async (req, res) => {
     }
 
     console.log(`📝 Solving exam question for subject: ${subject}, unit: ${unit}`);
+    console.log(`🎯 Model selected for solution: ${selectedModel} | Gemini available: ${!!genAI}`);
 
     // Build RAG context for the subject/unit
     const ragContext = await buildRAGContext(userId, `${subject} ${unit} ${question}`);
@@ -326,31 +417,58 @@ Structure your answer with:
 Provide the COMPLETE answer, ready to be written in an exam.
 `;
 
-    const model = "llama-3.3-70b-versatile";
     const messages = [
       { role: "user", content: solvePrompt }
     ];
 
-    console.log("🤖 Generating exam solution...");
+    let solution = "";
 
-    const groqRes = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model,
-        messages,
-        max_tokens: 3000,
-        temperature: 0.3, // Lower for more accurate, structured answers
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 90000,
+    // Route to selected AI provider
+    if (selectedModel === "gemini" && genAI) {
+      console.log("🤖 Generating exam solution with Gemini...");
+      try {
+        solution = await callGeminiAPI("You are an expert exam tutor.", messages, 3000);
+      } catch (geminiError) {
+        console.error("❌ Gemini API error, falling back to Groq:", geminiError.message);
+        const groqRes = await axios.post(
+          "https://api.groq.com/openai/v1/chat/completions",
+          {
+            model: SUPPORTED_MODELS.groq.model,
+            messages,
+            max_tokens: 3000,
+            temperature: 0.3,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${GROQ_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 90000,
+          }
+        );
+        solution = groqRes.data.choices[0].message.content;
       }
-    );
+    } else {
+      console.log("🤖 Generating exam solution with Groq...");
+      const groqRes = await axios.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          model: SUPPORTED_MODELS.groq.model,
+          messages,
+          max_tokens: 3000,
+          temperature: 0.3,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${GROQ_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 90000,
+        }
+      );
+      solution = groqRes.data.choices[0].message.content;
+    }
 
-    const solution = groqRes.data.choices[0].message.content;
     console.log("✅ Exam solution generated successfully");
 
     res.json({

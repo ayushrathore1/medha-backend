@@ -144,4 +144,85 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
+// Admin-only: Trigger password reset for a user
+const auth = require("../middleware/auth");
+const adminAuth = require("../middleware/adminAuth");
+
+router.post("/admin/trigger-reset", auth, adminAuth, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email required" });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ message: "User not found with this email" });
+    }
+
+    console.log(`🔐 Admin triggered password reset for: ${email}`);
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = await bcrypt.hash(rawToken, 10);
+    const expiresAt = new Date(
+      Date.now() + Number(process.env.RESET_TOKEN_TTL_MIN || 30) * 60 * 1000
+    );
+
+    // Invalidate any existing tokens
+    await PasswordResetToken.updateMany(
+      { userId: user._id, used: false },
+      { $set: { used: true } }
+    );
+
+    await PasswordResetToken.create({ userId: user._id, tokenHash, expiresAt });
+
+    const jwtWrapper = jwt.sign(
+      { uid: user._id.toString(), t: rawToken },
+      process.env.RESET_TOKEN_SECRET,
+      { expiresIn: `${process.env.RESET_TOKEN_TTL_MIN || 30}m` }
+    );
+
+    const resetUrl = `${process.env.APP_BASE_URL}/reset-password?token=${encodeURIComponent(jwtWrapper)}`;
+
+    const html = `
+      <div style="font-family:Inter, Arial, sans-serif; background: #f8fafc; padding: 28px 0; text-align:center;">
+        <div style="background:#fff; border-radius:12px; max-width:480px; margin:auto; padding:36px 32px; box-shadow:0 4px 18px 0 #0002;">
+          <h2 style="color:#2563eb; margin-top:0;">Reset Your Medha Password 🔐</h2>
+          <p style="font-size:1.1rem; color:#334155; margin-bottom:22px;">
+            Hi <b>${user.name}</b>,<br><br>
+            You requested a password reset for your Medha account. Click the button below to set a new password.
+          </p>
+          <p style="font-size:1rem; color:#64748b; margin-bottom:20px;">
+            This link will expire in <b>${process.env.RESET_TOKEN_TTL_MIN || 30} minutes</b>.
+          </p>
+          <a href="${resetUrl}" style="background:#2563eb; color:#fff; padding:14px 28px; border-radius:8px; text-decoration:none; font-weight:600; font-size:1.1rem; display:inline-block;">
+            Reset Password
+          </a>
+          <hr style="margin:32px 0; border: none; border-top:2px solid #eef2f7;">
+          <p style="color:#94a3b8; font-size:0.95rem;">
+            If you didn't request this, you can safely ignore this email. Your password will remain unchanged.
+          </p>
+          <div style="margin-top:16px; font-size:0.9rem; color:#94a3b8;">
+            — The Medha Team 🌟
+          </div>
+        </div>
+      </div>
+    `;
+
+    await sendEmail({ 
+      to: user.email, 
+      subject: "Reset Your Medha Password 🔐", 
+      html 
+    });
+
+    res.status(200).json({ 
+      success: true,
+      message: `Password reset link sent to ${user.email}`,
+      userName: user.name
+    });
+  } catch (err) {
+    console.error("❌ Admin trigger reset error:", err);
+    res.status(500).json({ message: "Error sending reset email" });
+  }
+});
+
 module.exports = { router, sendWelcomeEmail };
+

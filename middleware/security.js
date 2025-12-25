@@ -49,9 +49,9 @@ const sanitizeObject = (obj, parentKey = '') => {
   if (obj === null || typeof obj !== 'object') {
     // Sanitize string values for XSS
     if (typeof obj === 'string') {
-      // Allow HTML content for specific fields (email body, etc.)
-      const allowedHtmlFields = ['htmlBody', 'html', 'content'];
-      if (allowedHtmlFields.includes(parentKey)) {
+      // Allow certain fields that contain URLs or special content
+      const allowedFields = ['htmlBody', 'html', 'content', 'imageUrl', 'imageFileId', 'url', 'fileId'];
+      if (allowedFields.includes(parentKey)) {
         return obj;
       }
       return escapeHtml(obj);
@@ -144,12 +144,14 @@ const securityLogger = (req, res, next) => {
  * Logs and optionally blocks suspicious patterns
  */
 const suspiciousActivityDetector = (req, res, next) => {
-  // Whitelist paths that legitimately need HTML content
+  // Whitelist paths that legitimately need HTML content or have special characters
   const whitelistedPaths = [
     '/api/admin/send-email',
     '/api/admin/generate-email',
     '/api/chatbot',
-    '/api/chat'
+    '/api/chat',
+    '/api/rtu/subjects',  // RTU routes may have question codes with parentheses like Q3 (Part A)
+    '/api/rtu/imagekit-auth'
   ];
   
   // Skip check for whitelisted paths

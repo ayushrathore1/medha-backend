@@ -22,6 +22,12 @@ exports.sendAdminEmail = async (req, res) => {
     return res.status(400).json({ message: "Subject and Body are required." });
   }
 
+  // Email delay configuration (in milliseconds)
+  const EMAIL_DELAY_MS = 2000; // 2 seconds between emails to avoid rate limiting
+
+  // Helper function for delay
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
   try {
     let usersToSend = [];
 
@@ -47,35 +53,32 @@ exports.sendAdminEmail = async (req, res) => {
       return res.status(400).json({ message: "Invalid mode. Use 'all', 'individual', or 'unverified'." });
     }
 
-    // 2. Log History
-    try {
-      // Create or Update Log
-      let log = await EmailLog.findOne({ subject, htmlBody });
-      
-      if (log) {
-        log.sentCount += 1;
-        log.totalRecipients += usersToSend.length;
-        log.lastSentAt = Date.now();
-        await log.save();
-      } else {
-        await EmailLog.create({
-          subject,
-          htmlBody,
-          sentCount: 1,
-          totalRecipients: usersToSend.length,
-          lastSentAt: Date.now()
-        });
-      }
-    } catch (logError) {
-      console.error("Failed to log email history:", logError);
-      // Don't block sending if logging fails
+    // 2. Check for existing log and filter out already-sent recipients
+    let existingLog = await EmailLog.findOne({ subject, htmlBody });
+    let alreadySentEmails = new Set(existingLog?.recipients || []);
+    
+    // Filter out users who already received this exact email
+    const originalCount = usersToSend.length;
+    usersToSend = usersToSend.filter(user => !alreadySentEmails.has(user.email?.toLowerCase()));
+    const skippedCount = originalCount - usersToSend.length;
+
+    if (usersToSend.length === 0) {
+      return res.json({
+        message: `All ${originalCount} users have already received this email.`,
+        details: { success: 0, failed: 0, skipped: skippedCount }
+      });
     }
 
-    // 3. Send Emails
+    console.log(`📧 Starting email send: ${usersToSend.length} recipients (${skippedCount} skipped as duplicates)`);
+
+    // 3. Send Emails sequentially with delay
     let successCount = 0;
     let failureCount = 0;
+    let successfulRecipients = [];
 
-    const promises = usersToSend.map(async (user) => {
+    for (let i = 0; i < usersToSend.length; i++) {
+      const user = usersToSend[i];
+      
       try {
         if (user.email && user.email.includes("@")) {
           const personalizedBody = htmlBody
@@ -87,19 +90,56 @@ exports.sendAdminEmail = async (req, res) => {
             subject: subject,
             html: personalizedBody,
           });
+          
           successCount++;
+          successfulRecipients.push(user.email.toLowerCase());
+          console.log(`✅ [${i + 1}/${usersToSend.length}] Sent to ${user.email}`);
         }
       } catch (err) {
-        console.error(`Failed to send to ${user.email}:`, err.message);
+        console.error(`❌ [${i + 1}/${usersToSend.length}] Failed to send to ${user.email}:`, err.message);
         failureCount++;
+        
+        // If rate limited (421 error), wait longer before next attempt
+        if (err.responseCode === 421) {
+          console.log('⏳ Rate limited - waiting 30 seconds before continuing...');
+          await delay(30000);
+        }
       }
-    });
 
-    await Promise.all(promises);
+      // Add delay between emails (except for the last one)
+      if (i < usersToSend.length - 1) {
+        await delay(EMAIL_DELAY_MS);
+      }
+    }
+
+    // 4. Update Email Log with successful recipients
+    try {
+      if (existingLog) {
+        existingLog.sentCount += 1;
+        existingLog.totalRecipients += successCount;
+        existingLog.recipients = [...new Set([...existingLog.recipients, ...successfulRecipients])];
+        existingLog.lastSentAt = Date.now();
+        await existingLog.save();
+      } else {
+        await EmailLog.create({
+          subject,
+          htmlBody,
+          sentCount: 1,
+          totalRecipients: successCount,
+          recipients: successfulRecipients,
+          lastSentAt: Date.now()
+        });
+      }
+    } catch (logError) {
+      console.error("Failed to log email history:", logError);
+      // Don't block sending if logging fails
+    }
+
+    console.log(`📧 Email send complete: ${successCount} sent, ${failureCount} failed, ${skippedCount} skipped`);
 
     return res.json({ 
       message: `Email process completed. Sent to ${successCount} users.`, 
-      details: { success: successCount, failed: failureCount } 
+      details: { success: successCount, failed: failureCount, skipped: skippedCount } 
     });
 
   } catch (error) {
