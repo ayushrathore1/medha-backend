@@ -4,6 +4,7 @@ const QuestionSchema = new mongoose.Schema({
   qCode: { type: String, required: true },
   marks: { type: Number, required: true },
   text: { type: String, required: true }, // HTML string
+  topic: { type: String, default: null }, // Topic/category for the question
   imageUrl: { type: String, default: null }, // ImageKit URL for question image
   imageFileId: { type: String, default: null } // ImageKit file ID for deletion
 });
