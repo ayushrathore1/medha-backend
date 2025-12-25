@@ -87,14 +87,18 @@ const userSchema = new mongoose.Schema(
       ref: "Note",
     }],
     // Clerk integration fields
+    // Note: Clerk is now ONLY used for email verification (sending OTP codes)
+    // Authentication is handled entirely by MongoDB/bcrypt
     emailVerified: {
       type: Boolean,
       default: false,
     },
+    // DEPRECATED: clerkUserId is no longer used for authentication
+    // Kept for backwards compatibility with existing user records
+    // New users will not have this field populated
     clerkUserId: {
       type: String,
       sparse: true,
-      unique: true,
       default: null,
     },
   },

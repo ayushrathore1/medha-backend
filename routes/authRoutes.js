@@ -30,13 +30,15 @@ router.post("/register", async (req, res, next) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Create user in MongoDB with bcrypt password
+    // Note: Clerk is only used for email verification (OTP), not for authentication
+    // clerkUserId is deprecated - we no longer track Clerk accounts
     user = new User({
       name,
       email,
       password: hashedPassword,
-      // Clerk integration fields (optional - defaults to false/null if not provided)
       emailVerified: emailVerified === true,
-      clerkUserId: clerkUserId || null,
+      // clerkUserId is not stored - Clerk is only for email verification
     });
 
     await user.save();
