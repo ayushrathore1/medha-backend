@@ -342,46 +342,84 @@ router.post("/ask", optionalAuth, async (req, res) => {
   }
 });
 
-// Solve endpoint for exam questions
+// Solve endpoint for exam questions - Multi-Layer AI Pipeline with Caching
 router.post("/solve", optionalAuth, async (req, res) => {
   try {
-    const { question, subject, unit, marks, model: selectedModel = "groq" } = req.body;
+    const { 
+      question, 
+      subject, 
+      unit, 
+      marks, 
+      model: selectedModel = "groq", 
+      quickMode = false,
+      forceRegenerate = false  // New option to force regeneration
+    } = req.body;
     const userId = req.userId;
 
     if (!question) {
       return res.status(400).json({ error: "Question is required" });
     }
 
+    // Import QuestionSolution model for caching
+    const QuestionSolution = require("../models/QuestionSolution");
+
+    // Create hash for this question
+    const questionHash = QuestionSolution.createHash(question, subject, marks);
+    const mode = quickMode ? "quick" : "deep";
+
     console.log(`📝 Solving exam question for subject: ${subject}, unit: ${unit}`);
-    console.log(`🎯 Model selected for solution: ${selectedModel} | Gemini available: ${!!genAI}`);
+    console.log(`🎯 Mode: ${quickMode ? "Quick (Single AI)" : "Deep (Multi-Layer Pipeline)"}`);
+    console.log(`🔑 Question hash: ${questionHash}`);
 
-    // Build RAG context for the subject/unit
-    const ragContext = await buildRAGContext(userId, `${subject} ${unit} ${question}`);
+    // Check for cached solution (unless forceRegenerate is true)
+    if (!forceRegenerate) {
+      try {
+        const cachedSolution = await QuestionSolution.findOne({ questionHash, mode });
+        
+        if (cachedSolution) {
+          console.log(`✅ Found cached ${mode} solution (generated ${cachedSolution.createdAt})`);
+          
+          // Update access stats
+          await QuestionSolution.updateOne(
+            { _id: cachedSolution._id },
+            { $inc: { viewCount: 1 }, $set: { lastAccessedAt: new Date() } }
+          );
 
-    // Check if web search is needed
-    const { needsWebSearch, performWebSearch, formatSearchContext } = require("../utils/webSearch");
-    let webSearchContext = "";
-    const shouldSearch = await needsWebSearch(question);
-    if (shouldSearch) {
-      console.log("🌐 Question may need web search...");
-      const searchResults = await performWebSearch(`${subject} ${question}`);
-      webSearchContext = formatSearchContext(searchResults);
+          // Safely build metadata object
+          const cachedMetadata = cachedSolution.metadata ? { ...cachedSolution.metadata.toObject ? cachedSolution.metadata.toObject() : cachedSolution.metadata } : {};
+
+          return res.json({
+            success: true,
+            solution: cachedSolution.solution,
+            subject,
+            unit,
+            marks,
+            mode: cachedSolution.mode,
+            analysis: cachedSolution.analysis || null,
+            feedback: cachedSolution.feedback || null,
+            uiTemplate: cachedSolution.uiTemplate || { template: "default", config: { primaryColor: "indigo" } },
+            metadata: {
+              ...cachedMetadata,
+              cached: true,
+              cachedAt: cachedSolution.createdAt,
+              viewCount: (cachedSolution.viewCount || 0) + 1
+            }
+          });
+        }
+        console.log(`📦 No cached solution found for hash ${questionHash}, generating new one...`);
+      } catch (cacheReadErr) {
+        console.log("⚠️ Error reading cache, proceeding to generate:", cacheReadErr.message);
+      }
+    } else {
+      console.log(`🔄 Force regenerate requested, skipping cache...`);
     }
 
-    // Current time context
-    const now = new Date();
-    const timeOptions = { timeZone: 'Asia/Kolkata', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const istDateString = now.toLocaleDateString('en-IN', timeOptions);
-    const timeContext = `
-[CURRENT DATE (IST)]
-Today is ${istDateString}.
-`;
-
-    // Exam solution prompt
-    const solvePrompt = `
-You are an expert exam tutor for RTU (Rajasthan Technical University) students.
-
-
+    // Quick mode - use single AI call
+    if (quickMode) {
+      try {
+        const ragContext = await buildRAGContext(userId, `${subject} ${unit} ${question}`);
+        
+        const solvePrompt = `You are an expert exam tutor for RTU (Rajasthan Technical University) students.
 
 ## Question Details
 **Subject:** ${subject || "Not specified"}
@@ -390,71 +428,144 @@ You are an expert exam tutor for RTU (Rajasthan Technical University) students.
 **Question:** ${question}
 
 ${ragContext.fullContext || ""}
-${webSearchContext}
-${timeContext}
 
-## Instructions
-Generate a complete, exam-ready answer for this question. Your response must:
+## IMPORTANT FORMAT RULES:
+1. Structure your answer with clear headings (## and ###)
+2. Use separate paragraphs - DO NOT write one long paragraph
+3. If definition: Start with clear definition, then expand in new paragraph
+4. If formulas needed: Create a "## Key Formulas" section
+5. If diagram needed: Create "## How to Draw the Diagram" with numbered steps
+6. Use bullet points for lists
+7. Bold key terms
 
-1. **Be formatted for maximum marks** - Structure your answer exactly as expected in RTU exams
-2. **Include all key points** - Cover every aspect the examiner would look for
-3. **Use proper headings and subheadings** - Make it easy to read and grade
-4. **Include diagrams description if applicable** - Mention where diagrams should be drawn
-5. **Match the marks allocation** - For ${marks || "this"} marks question, provide appropriate depth
-6. **Use bullet points and numbered lists** where appropriate
-7. **Highlight key terms** using bold
-8. **Add examples** if relevant to the topic
+Generate a complete, well-structured, exam-ready answer:`;
 
-## Response Format
-Structure your answer with:
-- **Definition/Introduction** (if applicable)
-- **Main Content** (with proper subheadings)
-- **Key Points/Features**
-- **Examples/Applications** (if relevant)
-- **Diagram Notes** (if applicable)
-- **Conclusion** (if applicable)
+        let solution = "";
+        const startTime = Date.now();
+        
+        if (selectedModel === "gemini" && genAI) {
+          try {
+            solution = await callGeminiAPI("You are an expert exam tutor.", [{ role: "user", content: solvePrompt }], 3000);
+          } catch (geminiError) {
+            console.log("⚠️ Gemini failed, trying Groq fallback:", geminiError.message);
+            // Fallback to Groq
+            const groqRes = await axios.post(
+              "https://api.groq.com/openai/v1/chat/completions",
+              {
+                model: SUPPORTED_MODELS.groq.model,
+                messages: [{ role: "user", content: solvePrompt }],
+                max_tokens: 3000,
+                temperature: 0.3,
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${GROQ_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                timeout: 90000,
+              }
+            );
+            solution = groqRes.data.choices[0].message.content;
+          }
+        } else {
+          // Use Groq
+          const groqRes = await axios.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+              model: SUPPORTED_MODELS.groq.model,
+              messages: [{ role: "user", content: solvePrompt }],
+              max_tokens: 3000,
+              temperature: 0.3,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${GROQ_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              timeout: 90000,
+            }
+          );
+          solution = groqRes.data.choices[0].message.content;
+        }
 
-Provide the COMPLETE answer, ready to be written in an exam.
+        const totalTime = Date.now() - startTime;
+
+        // Save to cache
+        try {
+          const savedSolution = await QuestionSolution.findOneAndUpdate(
+            { questionHash, mode: "quick" },
+            {
+              $set: {
+                questionHash,
+                questionText: question,
+                subjectName: subject || "Unknown",
+                unitName: unit || "Unknown",
+                marks: marks || 0,
+                solution,
+                mode: "quick",
+                analysis: null,
+                feedback: null,
+                uiTemplate: { template: "default", config: { primaryColor: "indigo" } },
+                metadata: { totalTime, model: selectedModel, layers: {} },
+                generatedBy: userId || null,
+                lastAccessedAt: new Date()
+              }
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          );
+          console.log(`💾 Quick solution saved to cache with hash: ${questionHash}, id: ${savedSolution._id}`);
+        } catch (cacheErr) {
+          console.error("⚠️ Failed to cache quick solution:", cacheErr.message, cacheErr.stack);
+        }
+
+        return res.json({
+          success: true,
+          solution,
+          subject,
+          unit,
+          marks,
+          mode: "quick",
+          analysis: null,
+          feedback: null,
+          uiTemplate: { template: "default", config: { primaryColor: "indigo" } },
+          metadata: { totalTime, layers: {}, cached: false }
+        });
+
+      } catch (quickModeError) {
+        console.error("❌ Quick mode error:", quickModeError.message);
+        return res.status(500).json({ 
+          error: "Failed to generate quick solution. Please try Deep Solve instead.",
+          details: quickModeError.message 
+        });
+      }
+    }
+
+    // Deep mode - use Multi-Layer AI Pipeline
+    const { runMultiLayerPipeline } = require("../utils/multiLayerAI");
+    
+    console.log("🚀 Running Multi-Layer AI Pipeline...");
+    const pipelineResult = await runMultiLayerPipeline(question, subject, unit, marks, selectedModel);
+
+    if (!pipelineResult.success) {
+      // Fallback to quick mode if pipeline fails
+      console.log("⚠️ Pipeline failed, falling back to quick mode...");
+      const ragContext = await buildRAGContext(userId, `${subject} ${unit} ${question}`);
+      
+      const fallbackPrompt = `
+You are an expert RTU exam tutor. Generate a complete, exam-ready answer.
+
+Subject: ${subject}, Unit: ${unit}, Marks: ${marks}
+Question: ${question}
+${ragContext.fullContext || ""}
+
+IMPORTANT: Structure with clear headings, separate paragraphs, and bullet points.
 `;
 
-    const messages = [
-      { role: "user", content: solvePrompt }
-    ];
-
-    let solution = "";
-
-    // Route to selected AI provider
-    if (selectedModel === "gemini" && genAI) {
-      console.log("🤖 Generating exam solution with Gemini...");
-      try {
-        solution = await callGeminiAPI("You are an expert exam tutor.", messages, 3000);
-      } catch (geminiError) {
-        console.error("❌ Gemini API error, falling back to Groq:", geminiError.message);
-        const groqRes = await axios.post(
-          "https://api.groq.com/openai/v1/chat/completions",
-          {
-            model: SUPPORTED_MODELS.groq.model,
-            messages,
-            max_tokens: 3000,
-            temperature: 0.3,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${GROQ_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            timeout: 90000,
-          }
-        );
-        solution = groqRes.data.choices[0].message.content;
-      }
-    } else {
-      console.log("🤖 Generating exam solution with Groq...");
       const groqRes = await axios.post(
         "https://api.groq.com/openai/v1/chat/completions",
         {
           model: SUPPORTED_MODELS.groq.model,
-          messages,
+          messages: [{ role: "user", content: fallbackPrompt }],
           max_tokens: 3000,
           temperature: 0.3,
         },
@@ -466,23 +577,155 @@ Provide the COMPLETE answer, ready to be written in an exam.
           timeout: 90000,
         }
       );
-      solution = groqRes.data.choices[0].message.content;
+
+      const fallbackSolution = groqRes.data.choices[0].message.content;
+
+      // Save fallback to cache
+      try {
+        const savedSolution = await QuestionSolution.findOneAndUpdate(
+          { questionHash, mode: "fallback" },
+          {
+            $set: {
+              questionHash,
+              questionText: question,
+              subjectName: subject || "Unknown",
+              unitName: unit || "Unknown",
+              marks: marks || 0,
+              solution: fallbackSolution,
+              mode: "fallback",
+              analysis: null,
+              feedback: null,
+              uiTemplate: { template: "default", config: { primaryColor: "indigo" } },
+              metadata: { totalTime: 0, layers: {}, fallbackReason: pipelineResult.error },
+              generatedBy: userId || null,
+              lastAccessedAt: new Date()
+            }
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        console.log(`💾 Fallback solution saved to cache with hash: ${questionHash}, id: ${savedSolution._id}`);
+      } catch (cacheErr) {
+        console.error("⚠️ Failed to cache fallback solution:", cacheErr.message, cacheErr.stack);
+      }
+
+      return res.json({
+        success: true,
+        solution: fallbackSolution,
+        subject,
+        unit,
+        marks,
+        mode: "fallback",
+        analysis: null,
+        feedback: null,
+        uiTemplate: { template: "default", config: { primaryColor: "indigo" } },
+        metadata: { totalTime: 0, layers: {}, fallbackReason: pipelineResult.error, cached: false }
+      });
     }
 
-    console.log("✅ Exam solution generated successfully");
+    console.log(`✅ Multi-Layer Pipeline complete in ${pipelineResult.metadata.totalTime}ms`);
+
+    // Save to cache
+    try {
+      const savedSolution = await QuestionSolution.findOneAndUpdate(
+        { questionHash, mode: "deep" },
+        {
+          $set: {
+            questionHash,
+            questionText: question,
+            subjectName: subject || "Unknown",
+            unitName: unit || "Unknown",
+            marks: marks || 0,
+            solution: pipelineResult.solution,
+            mode: "deep",
+            analysis: pipelineResult.analysis || null,
+            feedback: pipelineResult.feedback || null,
+            uiTemplate: pipelineResult.uiTemplate || { template: "default", config: { primaryColor: "indigo" } },
+            metadata: pipelineResult.metadata || {},
+            generatedBy: userId || null,
+            lastAccessedAt: new Date()
+          }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+      console.log(`💾 Deep solution saved to cache with hash: ${questionHash}, id: ${savedSolution._id}`);
+    } catch (cacheErr) {
+      console.error("⚠️ Failed to cache deep solution:", cacheErr.message, cacheErr.stack);
+    }
 
     res.json({
-      solution,
+      success: true,
+      solution: pipelineResult.solution,
       subject,
       unit,
       marks,
-      hasWebSearch: !!webSearchContext,
+      mode: "deep",
+      analysis: pipelineResult.analysis,
+      feedback: pipelineResult.feedback,
+      uiTemplate: pipelineResult.uiTemplate,
+      metadata: { ...pipelineResult.metadata, cached: false }
     });
+
   } catch (err) {
     console.error("❌ Solve error:", err.response?.data || err.message);
     res.status(500).json({ error: err.message || "Failed to generate solution" });
   }
 });
 
-module.exports = router;
+// Endpoint to check for cached solutions for multiple questions
+router.post("/solve/check-cache", async (req, res) => {
+  try {
+    const { questions, subject } = req.body;
+    
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.json({ cachedSolutions: {} });
+    }
 
+    const QuestionSolution = require("../models/QuestionSolution");
+    const cachedSolutions = {};
+
+    // Check cache for each question
+    for (const q of questions) {
+      const questionText = q.text?.replace(/<[^>]*>/g, '') || '';
+      const questionHash = QuestionSolution.createHash(questionText, subject, q.marks);
+      
+      // Try to find deep solution first, then quick
+      let cached = await QuestionSolution.findOne({ questionHash, mode: "deep" });
+      if (!cached) {
+        cached = await QuestionSolution.findOne({ questionHash, mode: "quick" });
+      }
+      if (!cached) {
+        cached = await QuestionSolution.findOne({ questionHash, mode: "fallback" });
+      }
+      
+      if (cached) {
+        // Safely convert metadata
+        const metadata = cached.metadata ? 
+          (cached.metadata.toObject ? cached.metadata.toObject() : cached.metadata) : {};
+        
+        cachedSolutions[q.qCode] = {
+          solution: cached.solution,
+          analysis: cached.analysis || null,
+          feedback: cached.feedback || null,
+          uiTemplate: cached.uiTemplate || { template: "default", config: { primaryColor: "indigo" } },
+          metadata: {
+            ...metadata,
+            cached: true,
+            cachedAt: cached.createdAt
+          },
+          mode: cached.mode,
+          cached: true,
+          isError: false
+        };
+      }
+    }
+
+    console.log(`📦 Cache check: Found ${Object.keys(cachedSolutions).length}/${questions.length} cached solutions`);
+    res.json({ cachedSolutions });
+    
+  } catch (err) {
+    console.error("❌ Check cache error:", err.message);
+    res.json({ cachedSolutions: {} });
+  }
+});
+
+module.exports = router;
