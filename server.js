@@ -31,6 +31,9 @@ const rtuRoutes = require("./routes/rtuRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+// Charcha routes are conditionally loaded based on feature flag
+const CHARCHA_ENABLED = process.env.ENABLE_CHARCHA === 'true';
+const charchaRoutes = CHARCHA_ENABLED ? require("./routes/charchaRoutes") : null;
 const { router: authExtraRoutes } = require("./routes/authExtraRoutes");
 
 const app = express();
@@ -160,6 +163,12 @@ app.use("/api/ocr", aiLimiter, ocrRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
+
+// Charcha routes - only registered when feature flag is enabled
+if (CHARCHA_ENABLED) {
+  app.use("/api/charcha", charchaRoutes);
+  console.log("💬 Charcha feature: Enabled");
+}
 
 // Admin routes
 app.use("/api/admin", require("./routes/adminRoutes"));

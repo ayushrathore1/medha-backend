@@ -93,12 +93,54 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    // DEPRECATED: clerkUserId is no longer used for authentication
-    // Kept for backwards compatibility with existing user records
-    // New users will not have this field populated
-    clerkUserId: {
+    // MIGRATION NOTE: The old clerkUserId field and its unique index must be dropped
+    // Run in MongoDB: db.users.dropIndex("clerkUserId_1")
+    // ====== CHARCHA FIELDS ======
+    // Unique fun username for Charcha (e.g., "CleverPanda42")
+    charchaUsername: {
       type: String,
+      unique: true,
       sparse: true,
+      trim: true,
+    },
+    // Karma points from upvotes/downvotes
+    karma: {
+      type: Number,
+      default: 0,
+    },
+    // User rank based on karma (Noob, Scholar, Expert, Guru, Legend)
+    rank: {
+      type: String,
+      enum: ["Noob", "Scholar", "Expert", "Guru", "Legend"],
+      default: "Noob",
+    },
+    // Follower and following counts (cached for performance)
+    followerCount: {
+      type: Number,
+      default: 0,
+    },
+    followingCount: {
+      type: Number,
+      default: 0,
+    },
+    // Custom flair chosen by user
+    customFlair: {
+      type: String,
+      maxlength: 30,
+      default: "",
+    },
+    // Anonymous posting limits
+    anonymousPostsToday: {
+      type: Number,
+      default: 0,
+    },
+    lastAnonymousReset: {
+      type: Date,
+      default: null,
+    },
+    // When user joined Charcha
+    charchaJoinedAt: {
+      type: Date,
       default: null,
     },
   },

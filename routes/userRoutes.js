@@ -158,10 +158,8 @@ router.post("/verify-email", auth, async (req, res, next) => {
     }
 
     // Mark email as verified
+    // Note: clerkUserId is deprecated - Clerk is only used for OTP delivery
     user.emailVerified = true;
-    if (req.body.clerkUserId) {
-      user.clerkUserId = req.body.clerkUserId;
-    }
     await user.save();
 
     console.log("✅ Email verified for user:", user.email);
