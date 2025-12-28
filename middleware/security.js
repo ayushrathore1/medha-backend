@@ -151,7 +151,15 @@ const suspiciousActivityDetector = (req, res, next) => {
     '/api/chatbot',
     '/api/chat',
     '/api/rtu/subjects',  // RTU routes may have question codes with parentheses like Q3 (Part A)
-    '/api/rtu/imagekit-auth'
+    '/api/rtu/imagekit-auth',
+    // Auth routes - passwords may contain SQL-like characters (', #, --)
+    // This is safe because passwords are bcrypt-compared, never used in queries
+    '/api/auth/register',
+    '/api/auth/login',
+    '/api/auth/change-password',
+    '/api/auth/reset-password',
+    '/api/auth-extra/reset-password',
+    '/api/auth-extra/forgot-password'
   ];
   
   // Skip check for whitelisted paths

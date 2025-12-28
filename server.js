@@ -12,7 +12,8 @@ const {
   hppMiddleware,
   requestTimeout,
   securityLogger,
-  suspiciousActivityDetector
+  suspiciousActivityDetector,
+  bodySizeValidator
 } = require("./middleware/security");
 
 // Route imports
@@ -79,18 +80,22 @@ app.use(cors({
   maxAge: 86400 // Cache preflight for 24 hours
 }));
 
-// 4. Body parsing with size limits
-app.use(express.json({ limit: '50mb' })); // Increased to 50MB for large payloads
+// 4. Body size validation (before body parsing)
+app.use(bodySizeValidator);
+
+// 5. Body parsing with size limits
+// Note: bodySizeValidator enforces 10KB for JSON, 50MB for multipart/form-data
+app.use(express.json({ limit: '50mb' })); // High limit here, validator handles enforcement
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// 5. Security middleware stack
+// 6. Security middleware stack
 app.use(mongoSanitizeMiddleware); // Prevent NoSQL injection
 app.use(hppMiddleware); // Prevent HTTP Parameter Pollution
 app.use(securityLogger); // Log requests with security context
 app.use(suspiciousActivityDetector); // Detect malicious patterns
 app.use(requestTimeout(30000)); // 30 second timeout
 
-// 6. General rate limiting for all routes
+// 7. General rate limiting for all routes
 app.use(generalLimiter);
 
 // ============================================
