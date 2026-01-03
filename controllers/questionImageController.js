@@ -22,7 +22,10 @@ exports.getImageKitAuth = async (req, res) => {
       });
     }
     
-    const authenticationParameters = imagekit.getAuthenticationParameters();
+    const crypto = require('crypto');
+    const token = crypto.randomUUID();
+    const expire = Math.floor(Date.now() / 1000) + 2400; // 40 minutes
+    const authenticationParameters = imagekit.getAuthenticationParameters(token, expire);
     res.json(authenticationParameters);
   } catch (error) {
     console.error("Error generating ImageKit auth:", error);

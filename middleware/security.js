@@ -57,7 +57,8 @@ const sanitizeObject = (obj, parentKey = '') => {
         'pdfUrl', 'pdfFileId', 'pdfThumbnailUrl',
         'videoUrl', 'videoFileId', 'videoId',
         'thumbnailUrl', 'thumbnailFileId',
-        'audioHindiUrl', 'audioHindiFileId', 'audioEnglishUrl', 'audioEnglishFileId'
+        'audioHindiUrl', 'audioHindiFileId', 'audioEnglishUrl', 'audioEnglishFileId',
+        'avatar' // Allow avatar base64 strings
       ];
       if (allowedFields.includes(parentKey)) {
         return obj;
@@ -168,7 +169,9 @@ const suspiciousActivityDetector = (req, res, next) => {
     '/api/auth/change-password',
     '/api/auth/reset-password',
     '/api/auth-extra/reset-password',
-    '/api/auth-extra/forgot-password'
+    '/api/auth-extra/reset-password',
+    '/api/auth-extra/forgot-password',
+    '/api/users/me' // Allow profile updates with large base64 payloads
   ];
   
   // Skip check for whitelisted paths
@@ -208,8 +211,8 @@ const bodySizeValidator = (req, res, next) => {
   const contentLength = parseInt(req.get('content-length') || '0', 10);
   const contentType = req.get('content-type') || '';
   
-  // 10KB limit for JSON, 50MB for file uploads
-  const maxSize = contentType.includes('multipart/form-data') ? 50 * 1024 * 1024 : 10 * 1024;
+  // 50MB limit for everything (JSON or file uploads) to allow base64 images
+  const maxSize = 50 * 1024 * 1024;
   
   if (contentLength > maxSize) {
     console.warn(`[SECURITY] Request body too large: ${contentLength} bytes from IP: ${req.ip}`);

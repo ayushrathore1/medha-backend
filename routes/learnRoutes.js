@@ -302,7 +302,10 @@ router.get('/admin/imagekit-auth', authMiddleware, async (req, res) => {
       });
     }
     
-    const authenticationParameters = imagekit.getAuthenticationParameters();
+    const crypto = require('crypto');
+    const token = crypto.randomUUID();
+    const expire = Math.floor(Date.now() / 1000) + 2400; // 40 minutes from now
+    const authenticationParameters = imagekit.getAuthenticationParameters(token, expire);
     res.json({
       success: true,
       ...authenticationParameters,

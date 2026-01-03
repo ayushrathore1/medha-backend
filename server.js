@@ -170,6 +170,7 @@ app.use("/api/ocr", aiLimiter, ocrRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/wallpapers", require("./routes/wallpaperRoutes"));
 
 // Charcha routes - only registered when feature flag is enabled
 if (CHARCHA_ENABLED) {

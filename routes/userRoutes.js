@@ -55,6 +55,8 @@ router.get("/activity-history", auth, async (req, res, next) => {
 // @route   PATCH /api/users/me
 // @desc    Update profile info (name, college, year, branch, avatar)
 // @access  Private
+const cloudinary = require("../utils/cloudinary");
+
 router.patch("/me", auth, async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -66,7 +68,27 @@ router.patch("/me", auth, async (req, res, next) => {
     if (year !== undefined) updates.year = year;
     if (branch !== undefined) updates.branch = branch;
     if (gender !== undefined) updates.gender = gender;
-    if (avatar !== undefined) updates.avatar = avatar;
+    
+    // Handle Avatar Upload to Cloudinary
+    if (avatar !== undefined) {
+      if (avatar && avatar.startsWith("data:image")) {
+        try {
+           const uploadRes = await cloudinary.uploader.upload(avatar, {
+             folder: "medha_avatars",
+             width: 300,
+             crop: "scale"
+           });
+           updates.avatar = uploadRes.secure_url;
+        } catch (uploadErr) {
+           console.error("Cloudinary Upload Error:", uploadErr);
+           return res.status(500).json({ message: "Image upload failed" });
+        }
+      } else {
+        // If empty string (remove avatar) or already a URL
+        updates.avatar = avatar;
+      }
+    }
+
     if (avatarIndex !== undefined) updates.avatarIndex = avatarIndex;
 
     const user = await User.findByIdAndUpdate(userId, updates, {
