@@ -29,6 +29,7 @@ const quizRoutes = require("./routes/quizRoutes");
 const ocrRoutes = require("./routes/ocrRoutes");
 const userRoutes = require("./routes/userRoutes");
 const rtuRoutes = require("./routes/rtuRoutes");
+const learnRoutes = require("./routes/learnRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
@@ -160,6 +161,7 @@ app.use("/api/todos", todoRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/rtu", rtuRoutes);
+app.use("/api/learn", learnRoutes);
 
 // AI/Resource-intensive routes with AI rate limiting
 app.use("/api/chatbot", aiLimiter, chatbotRoutes);

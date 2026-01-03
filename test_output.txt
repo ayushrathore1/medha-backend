@@ -1,0 +1,572 @@
+
+> test
+> cross-env NODE_ENV=test jest --detectOpenHandles --forceExit tests/security.test.js --verbose
+
+
+🔧 Starting in-memory MongoDB for tests...
+✅ Test MongoDB running at: mongodb://127.0.0.1:58675/
+
+  console.log
+    [dotenv@17.2.2] injecting env (19) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+
+  console.log
+    [dotenv@17.2.2] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+
+  console.log
+    [dotenv@17.2.2] injecting env (0) from .env -- tip: 📡 observe env with Radar: https://dotenvx.com/radar
+
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+
+  console.log
+    [dotenv@17.2.2] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+
+      at _log (node_modules/dotenv/lib/main.js:139:11)
+
+  console.log
+    🔧 Gemini API: ✅ Configured
+
+      at Object.log (routes/chatbotRoutes.js:15:9)
+
+  console.log
+    ✅ Connected to MongoDB
+
+      at log (server.js:258:13)
+
+  console.log
+    📊 Connection pool: 50 max connections
+
+      at log (server.js:259:13)
+
+  console.log
+    🔒 Security middleware: Enabled
+
+      at log (server.js:260:13)
+
+  console.log
+    ⚡ Rate limiting: Enabled
+
+      at log (server.js:261:13)
+
+  console.log
+    🗜️  Compression: Enabled
+
+      at log (server.js:262:13)
+
+  console.log
+    🚀 MEDHA backend running at http://localhost:5000
+
+      at Server.log (server.js:265:15)
+
+  console.log
+    🏥 Health check: http://localhost:5000/health
+
+      at Server.log (server.js:266:15)
+
+  console.warn
+    [SECURITY] Blocked NoSQL injection attempt: $where
+
+    [0m [90m 68 |[39m     [90m// Block keys starting with $ (MongoDB operators)[39m
+     [90m 69 |[39m     [36mif[39m (key[33m.[39mstartsWith([32m'$'[39m)) {
+    [31m[1m>[22m[39m[90m 70 |[39m       console[33m.[39mwarn([32m`[SECURITY] Blocked NoSQL injection attempt: ${key}`[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 71 |[39m       sanitized[[32m'_'[39m [33m+[39m key[33m.[39msubstring([35m1[39m)] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m
+     [90m 72 |[39m     } [36melse[39m {
+     [90m 73 |[39m       sanitized[key] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m[0m
+
+      at warn (middleware/security.js:70:15)
+      at sanitizeObject (middleware/security.js:73:24)
+      at sanitizeObject (middleware/security.js:82:18)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at urlencodedParser (node_modules/body-parser/lib/types/urlencoded.js:57:7)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:132:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+  console.error
+    [LOGIN ERROR] CastError: Cast to string failed for value "{ _where: 'this.password.match(&#x2F;.*&#x2F;) !== null' }" (type Object) at path "email" for model "User"
+        at SchemaString.Object.<anonymous>.SchemaString.cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:607:11)
+        at model.Query.<anonymous> (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:370:16)
+        at SchemaString.Object.<anonymous>.SchemaType._applySetters (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schemaType.js:1228:20)
+        at SchemaString.Object.<anonymous>.SchemaType.applySetters (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schemaType.js:1253:16)
+        at SchemaString.Object.<anonymous>.SchemaString.castForQuery (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:701:17)
+        at cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\cast.js:319:34)
+        at model.Query.Object.<anonymous>.Query.cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:5060:12)
+        at model.Query.Object.<anonymous>.Query._castConditions (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:2374:10)
+        at model.Query._findOne (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:2697:8)
+        at model.Query.exec (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:4627:80)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\routes\authRoutes.js:89:18 {
+      stringValue: `"{ _where: 'this.password.match(&#x2F;.*&#x2F;) !== null' }"`,
+      messageFormat: undefined,
+      kind: 'string',
+      value: { _where: 'this.password.match(&#x2F;.*&#x2F;) !== null' },
+      path: 'email',
+      reason: null,
+      valueType: 'Object'
+    }
+
+    [0m [90m 165 |[39m     })[33m;[39m
+     [90m 166 |[39m   } [36mcatch[39m (err) {
+    [31m[1m>[22m[39m[90m 167 |[39m     console[33m.[39merror([32m"[LOGIN ERROR]"[39m[33m,[39m err)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 168 |[39m     [36mreturn[39m res
+     [90m 169 |[39m       [33m.[39mstatus([35m500[39m)
+     [90m 170 |[39m       [33m.[39mjson({ message[33m:[39m [32m"Internal server error"[39m[33m,[39m error[33m:[39m [33mString[39m(err) })[33m;[39m[0m
+
+      at error (routes/authRoutes.js:167:13)
+
+  console.warn
+    [WARN] POST /login - 500 - 32ms - IP: ::ffff:127.0.0.1
+
+    [0m [90m 133 |[39m     
+     [90m 134 |[39m     [36mif[39m (res[33m.[39mstatusCode [33m>=[39m [35m400[39m) {
+    [31m[1m>[22m[39m[90m 135 |[39m       console[33m.[39mwarn([32m`[${logLevel.toUpperCase()}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - IP: ${req.ip}`[39m)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 136 |[39m     }
+     [90m 137 |[39m   })[33m;[39m
+     [90m 138 |[39m   [0m
+
+      at ServerResponse.warn (middleware/security.js:135:15)
+
+  console.warn
+    [SECURITY] Blocked NoSQL injection attempt: $gt
+
+    [0m [90m 68 |[39m     [90m// Block keys starting with $ (MongoDB operators)[39m
+     [90m 69 |[39m     [36mif[39m (key[33m.[39mstartsWith([32m'$'[39m)) {
+    [31m[1m>[22m[39m[90m 70 |[39m       console[33m.[39mwarn([32m`[SECURITY] Blocked NoSQL injection attempt: ${key}`[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 71 |[39m       sanitized[[32m'_'[39m [33m+[39m key[33m.[39msubstring([35m1[39m)] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m
+     [90m 72 |[39m     } [36melse[39m {
+     [90m 73 |[39m       sanitized[key] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m[0m
+
+      at warn (middleware/security.js:70:15)
+      at sanitizeObject (middleware/security.js:73:24)
+      at sanitizeObject (middleware/security.js:82:18)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at urlencodedParser (node_modules/body-parser/lib/types/urlencoded.js:57:7)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:132:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+  console.warn
+    [SECURITY] Blocked NoSQL injection attempt: $gt
+
+    [0m [90m 68 |[39m     [90m// Block keys starting with $ (MongoDB operators)[39m
+     [90m 69 |[39m     [36mif[39m (key[33m.[39mstartsWith([32m'$'[39m)) {
+    [31m[1m>[22m[39m[90m 70 |[39m       console[33m.[39mwarn([32m`[SECURITY] Blocked NoSQL injection attempt: ${key}`[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 71 |[39m       sanitized[[32m'_'[39m [33m+[39m key[33m.[39msubstring([35m1[39m)] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m
+     [90m 72 |[39m     } [36melse[39m {
+     [90m 73 |[39m       sanitized[key] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m[0m
+
+      at warn (middleware/security.js:70:15)
+      at sanitizeObject (middleware/security.js:73:24)
+      at sanitizeObject (middleware/security.js:82:18)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at urlencodedParser (node_modules/body-parser/lib/types/urlencoded.js:57:7)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:132:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+  console.error
+    [LOGIN ERROR] CastError: Cast to string failed for value "{ _gt: '' }" (type Object) at path "email" for model "User"
+        at SchemaString.Object.<anonymous>.SchemaString.cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:607:11)
+        at model.Query.<anonymous> (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:370:16)
+        at SchemaString.Object.<anonymous>.SchemaType._applySetters (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schemaType.js:1228:20)
+        at SchemaString.Object.<anonymous>.SchemaType.applySetters (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schemaType.js:1253:16)
+        at SchemaString.Object.<anonymous>.SchemaString.castForQuery (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:701:17)
+        at cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\cast.js:319:34)
+        at model.Query.Object.<anonymous>.Query.cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:5060:12)
+        at model.Query.Object.<anonymous>.Query._castConditions (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:2374:10)
+        at model.Query._findOne (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:2697:8)
+        at model.Query.exec (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:4627:80)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\routes\authRoutes.js:89:18 {
+      stringValue: `"{ _gt: '' }"`,
+      messageFormat: undefined,
+      kind: 'string',
+      value: { _gt: '' },
+      path: 'email',
+      reason: null,
+      valueType: 'Object'
+    }
+
+    [0m [90m 165 |[39m     })[33m;[39m
+     [90m 166 |[39m   } [36mcatch[39m (err) {
+    [31m[1m>[22m[39m[90m 167 |[39m     console[33m.[39merror([32m"[LOGIN ERROR]"[39m[33m,[39m err)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 168 |[39m     [36mreturn[39m res
+     [90m 169 |[39m       [33m.[39mstatus([35m500[39m)
+     [90m 170 |[39m       [33m.[39mjson({ message[33m:[39m [32m"Internal server error"[39m[33m,[39m error[33m:[39m [33mString[39m(err) })[33m;[39m[0m
+
+      at error (routes/authRoutes.js:167:13)
+
+  console.warn
+    [WARN] POST /login - 500 - 15ms - IP: ::ffff:127.0.0.1
+
+    [0m [90m 133 |[39m     
+     [90m 134 |[39m     [36mif[39m (res[33m.[39mstatusCode [33m>=[39m [35m400[39m) {
+    [31m[1m>[22m[39m[90m 135 |[39m       console[33m.[39mwarn([32m`[${logLevel.toUpperCase()}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - IP: ${req.ip}`[39m)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 136 |[39m     }
+     [90m 137 |[39m   })[33m;[39m
+     [90m 138 |[39m   [0m
+
+      at ServerResponse.warn (middleware/security.js:135:15)
+
+  console.warn
+    [SECURITY] Blocked NoSQL injection attempt: $ne
+
+    [0m [90m 68 |[39m     [90m// Block keys starting with $ (MongoDB operators)[39m
+     [90m 69 |[39m     [36mif[39m (key[33m.[39mstartsWith([32m'$'[39m)) {
+    [31m[1m>[22m[39m[90m 70 |[39m       console[33m.[39mwarn([32m`[SECURITY] Blocked NoSQL injection attempt: ${key}`[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 71 |[39m       sanitized[[32m'_'[39m [33m+[39m key[33m.[39msubstring([35m1[39m)] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m
+     [90m 72 |[39m     } [36melse[39m {
+     [90m 73 |[39m       sanitized[key] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m[0m
+
+      at warn (middleware/security.js:70:15)
+      at sanitizeObject (middleware/security.js:73:24)
+      at sanitizeObject (middleware/security.js:82:18)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at urlencodedParser (node_modules/body-parser/lib/types/urlencoded.js:57:7)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:132:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+  console.warn
+    [SECURITY] Blocked NoSQL injection attempt: $ne
+
+    [0m [90m 68 |[39m     [90m// Block keys starting with $ (MongoDB operators)[39m
+     [90m 69 |[39m     [36mif[39m (key[33m.[39mstartsWith([32m'$'[39m)) {
+    [31m[1m>[22m[39m[90m 70 |[39m       console[33m.[39mwarn([32m`[SECURITY] Blocked NoSQL injection attempt: ${key}`[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 71 |[39m       sanitized[[32m'_'[39m [33m+[39m key[33m.[39msubstring([35m1[39m)] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m
+     [90m 72 |[39m     } [36melse[39m {
+     [90m 73 |[39m       sanitized[key] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m[0m
+
+      at warn (middleware/security.js:70:15)
+      at sanitizeObject (middleware/security.js:73:24)
+      at sanitizeObject (middleware/security.js:82:18)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at urlencodedParser (node_modules/body-parser/lib/types/urlencoded.js:57:7)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:132:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+  console.error
+    [LOGIN ERROR] CastError: Cast to string failed for value "{ _ne: null }" (type Object) at path "email" for model "User"
+        at SchemaString.Object.<anonymous>.SchemaString.cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:607:11)
+        at model.Query.<anonymous> (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:370:16)
+        at SchemaString.Object.<anonymous>.SchemaType._applySetters (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schemaType.js:1228:20)
+        at SchemaString.Object.<anonymous>.SchemaType.applySetters (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schemaType.js:1253:16)
+        at SchemaString.Object.<anonymous>.SchemaString.castForQuery (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:701:17)
+        at cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\cast.js:319:34)
+        at model.Query.Object.<anonymous>.Query.cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:5060:12)
+        at model.Query.Object.<anonymous>.Query._castConditions (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:2374:10)
+        at model.Query._findOne (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:2697:8)
+        at model.Query.exec (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:4627:80)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\routes\authRoutes.js:89:18 {
+      stringValue: '"{ _ne: null }"',
+      messageFormat: undefined,
+      kind: 'string',
+      value: { _ne: null },
+      path: 'email',
+      reason: null,
+      valueType: 'Object'
+    }
+
+    [0m [90m 165 |[39m     })[33m;[39m
+     [90m 166 |[39m   } [36mcatch[39m (err) {
+    [31m[1m>[22m[39m[90m 167 |[39m     console[33m.[39merror([32m"[LOGIN ERROR]"[39m[33m,[39m err)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 168 |[39m     [36mreturn[39m res
+     [90m 169 |[39m       [33m.[39mstatus([35m500[39m)
+     [90m 170 |[39m       [33m.[39mjson({ message[33m:[39m [32m"Internal server error"[39m[33m,[39m error[33m:[39m [33mString[39m(err) })[33m;[39m[0m
+
+      at error (routes/authRoutes.js:167:13)
+
+  console.warn
+    [WARN] POST /login - 500 - 24ms - IP: ::ffff:127.0.0.1
+
+    [0m [90m 133 |[39m     
+     [90m 134 |[39m     [36mif[39m (res[33m.[39mstatusCode [33m>=[39m [35m400[39m) {
+    [31m[1m>[22m[39m[90m 135 |[39m       console[33m.[39mwarn([32m`[${logLevel.toUpperCase()}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - IP: ${req.ip}`[39m)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 136 |[39m     }
+     [90m 137 |[39m   })[33m;[39m
+     [90m 138 |[39m   [0m
+
+      at ServerResponse.warn (middleware/security.js:135:15)
+
+  console.warn
+    [SECURITY] Blocked NoSQL injection attempt: $regex
+
+    [0m [90m 68 |[39m     [90m// Block keys starting with $ (MongoDB operators)[39m
+     [90m 69 |[39m     [36mif[39m (key[33m.[39mstartsWith([32m'$'[39m)) {
+    [31m[1m>[22m[39m[90m 70 |[39m       console[33m.[39mwarn([32m`[SECURITY] Blocked NoSQL injection attempt: ${key}`[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 71 |[39m       sanitized[[32m'_'[39m [33m+[39m key[33m.[39msubstring([35m1[39m)] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m
+     [90m 72 |[39m     } [36melse[39m {
+     [90m 73 |[39m       sanitized[key] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m[0m
+
+      at warn (middleware/security.js:70:15)
+      at sanitizeObject (middleware/security.js:73:24)
+      at sanitizeObject (middleware/security.js:82:18)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at urlencodedParser (node_modules/body-parser/lib/types/urlencoded.js:57:7)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:132:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+  console.warn
+    [SECURITY] Blocked NoSQL injection attempt: $regex
+
+    [0m [90m 68 |[39m     [90m// Block keys starting with $ (MongoDB operators)[39m
+     [90m 69 |[39m     [36mif[39m (key[33m.[39mstartsWith([32m'$'[39m)) {
+    [31m[1m>[22m[39m[90m 70 |[39m       console[33m.[39mwarn([32m`[SECURITY] Blocked NoSQL injection attempt: ${key}`[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 71 |[39m       sanitized[[32m'_'[39m [33m+[39m key[33m.[39msubstring([35m1[39m)] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m
+     [90m 72 |[39m     } [36melse[39m {
+     [90m 73 |[39m       sanitized[key] [33m=[39m sanitizeObject(obj[key][33m,[39m key)[33m;[39m[0m
+
+      at warn (middleware/security.js:70:15)
+      at sanitizeObject (middleware/security.js:73:24)
+      at sanitizeObject (middleware/security.js:82:18)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at urlencodedParser (node_modules/body-parser/lib/types/urlencoded.js:57:7)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:132:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+  console.error
+    [LOGIN ERROR] CastError: Cast to string failed for value "{ _regex: '.*' }" (type Object) at path "email" for model "User"
+        at SchemaString.Object.<anonymous>.SchemaString.cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:607:11)
+        at model.Query.<anonymous> (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:370:16)
+        at SchemaString.Object.<anonymous>.SchemaType._applySetters (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schemaType.js:1228:20)
+        at SchemaString.Object.<anonymous>.SchemaType.applySetters (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schemaType.js:1253:16)
+        at SchemaString.Object.<anonymous>.SchemaString.castForQuery (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\schema\string.js:701:17)
+        at cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\cast.js:319:34)
+        at model.Query.Object.<anonymous>.Query.cast (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:5060:12)
+        at model.Query.Object.<anonymous>.Query._castConditions (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:2374:10)
+        at model.Query._findOne (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:2697:8)
+        at model.Query.exec (E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\node_modules\mongoose\lib\query.js:4627:80)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at E:\SE LAB\PBL PROJECT\MEDHA\medha-backend\routes\authRoutes.js:89:18 {
+      stringValue: `"{ _regex: '.*' }"`,
+      messageFormat: undefined,
+      kind: 'string',
+      value: { _regex: '.*' },
+      path: 'email',
+      reason: null,
+      valueType: 'Object'
+    }
+
+    [0m [90m 165 |[39m     })[33m;[39m
+     [90m 166 |[39m   } [36mcatch[39m (err) {
+    [31m[1m>[22m[39m[90m 167 |[39m     console[33m.[39merror([32m"[LOGIN ERROR]"[39m[33m,[39m err)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 168 |[39m     [36mreturn[39m res
+     [90m 169 |[39m       [33m.[39mstatus([35m500[39m)
+     [90m 170 |[39m       [33m.[39mjson({ message[33m:[39m [32m"Internal server error"[39m[33m,[39m error[33m:[39m [33mString[39m(err) })[33m;[39m[0m
+
+      at error (routes/authRoutes.js:167:13)
+
+  console.warn
+    [WARN] POST /login - 500 - 14ms - IP: ::ffff:127.0.0.1
+
+    [0m [90m 133 |[39m     
+     [90m 134 |[39m     [36mif[39m (res[33m.[39mstatusCode [33m>=[39m [35m400[39m) {
+    [31m[1m>[22m[39m[90m 135 |[39m       console[33m.[39mwarn([32m`[${logLevel.toUpperCase()}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - IP: ${req.ip}`[39m)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 136 |[39m     }
+     [90m 137 |[39m   })[33m;[39m
+     [90m 138 |[39m   [0m
+
+      at ServerResponse.warn (middleware/security.js:135:15)
+
+  console.log
+    ✅ User saved to database: xss-test@example.com
+
+      at log (routes/authRoutes.js:45:13)
+
+  console.log
+    📧 Attempting to send welcome email to: xss-test@example.com
+
+      at log (routes/authExtraRoutes.js:38:11)
+
+  console.log
+    ✅ User saved to database: xss-test2@example.com
+
+      at log (routes/authRoutes.js:45:13)
+
+  console.log
+    📧 Attempting to send welcome email to: xss-test2@example.com
+
+      at log (routes/authExtraRoutes.js:38:11)
+
+  console.log
+    ✅ User saved to database: cmd@example.com
+
+      at log (routes/authRoutes.js:45:13)
+
+  console.log
+    📧 Attempting to send welcome email to: cmd@example.com
+
+      at log (routes/authExtraRoutes.js:38:11)
+
+  console.log
+    ✅ User saved to database: eval@example.com
+
+      at log (routes/authRoutes.js:45:13)
+
+  console.log
+    📧 Attempting to send welcome email to: eval@example.com
+
+      at log (routes/authExtraRoutes.js:38:11)
+
+  console.log
+    ✅ User saved to database: normal@example.com
+
+      at log (routes/authRoutes.js:45:13)
+
+  console.log
+    📧 Attempting to send welcome email to: normal@example.com
+
+      at log (routes/authExtraRoutes.js:38:11)
+
+  console.log
+    ✅ User saved to database: large@example.com
+
+      at log (routes/authRoutes.js:45:13)
+
+  console.log
+    📧 Attempting to send welcome email to: large@example.com
+
+      at log (routes/authExtraRoutes.js:38:11)
+
+  console.warn
+    [WARN] GET /api/nonexistent - 404 - 5ms - IP: ::ffff:127.0.0.1
+
+    [0m [90m 133 |[39m     
+     [90m 134 |[39m     [36mif[39m (res[33m.[39mstatusCode [33m>=[39m [35m400[39m) {
+    [31m[1m>[22m[39m[90m 135 |[39m       console[33m.[39mwarn([32m`[${logLevel.toUpperCase()}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - IP: ${req.ip}`[39m)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 136 |[39m     }
+     [90m 137 |[39m   })[33m;[39m
+     [90m 138 |[39m   [0m
+
+      at ServerResponse.warn (middleware/security.js:135:15)
+
+  console.warn
+    [WARN] POST /login - 401 - 11ms - IP: ::ffff:127.0.0.1
+
+    [0m [90m 133 |[39m     
+     [90m 134 |[39m     [36mif[39m (res[33m.[39mstatusCode [33m>=[39m [35m400[39m) {
+    [31m[1m>[22m[39m[90m 135 |[39m       console[33m.[39mwarn([32m`[${logLevel.toUpperCase()}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - IP: ${req.ip}`[39m)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 136 |[39m     }
+     [90m 137 |[39m   })[33m;[39m
+     [90m 138 |[39m   [0m
+
+      at ServerResponse.warn (middleware/security.js:135:15)
+
+  console.log
+    ✅ User saved to database: traversal@test.com
+
+      at log (routes/authRoutes.js:45:13)
+
+  console.log
+    📧 Attempting to send welcome email to: traversal@test.com
+
+      at log (routes/authExtraRoutes.js:38:11)
+
+  console.log
+    ✅ User saved to database: encoded@test.com
+
+      at log (routes/authRoutes.js:45:13)
+
+  console.log
+    📧 Attempting to send welcome email to: encoded@test.com
+
+      at log (routes/authExtraRoutes.js:38:11)
+
+
+🧹 Cleaning up test environment...
+✅ Test MongoDB stopped
+

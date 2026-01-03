@@ -50,7 +50,15 @@ const sanitizeObject = (obj, parentKey = '') => {
     // Sanitize string values for XSS
     if (typeof obj === 'string') {
       // Allow certain fields that contain URLs or special content
-      const allowedFields = ['htmlBody', 'html', 'content', 'imageUrl', 'imageFileId', 'url', 'fileId'];
+      const allowedFields = [
+        'htmlBody', 'html', 'content', 
+        'imageUrl', 'imageFileId', 'url', 'fileId',
+        // Learn content fields
+        'pdfUrl', 'pdfFileId', 'pdfThumbnailUrl',
+        'videoUrl', 'videoFileId', 'videoId',
+        'thumbnailUrl', 'thumbnailFileId',
+        'audioHindiUrl', 'audioHindiFileId', 'audioEnglishUrl', 'audioEnglishFileId'
+      ];
       if (allowedFields.includes(parentKey)) {
         return obj;
       }
@@ -152,6 +160,7 @@ const suspiciousActivityDetector = (req, res, next) => {
     '/api/chat',
     '/api/rtu/subjects',  // RTU routes may have question codes with parentheses like Q3 (Part A)
     '/api/rtu/imagekit-auth',
+    '/api/learn/admin',  // Learn admin routes for ImageKit uploads
     // Auth routes - passwords may contain SQL-like characters (', #, --)
     // This is safe because passwords are bcrypt-compared, never used in queries
     '/api/auth/register',

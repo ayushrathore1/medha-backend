@@ -2,6 +2,9 @@ const User = require("../models/User");
 const EmailLog = require("../models/EmailLog");
 const { sendEmail } = require("../utils/sendEmail");
 
+// Track in-flight email operations to prevent duplicate sends
+const inFlightOperations = new Set();
+
 // Get all users with relevant fields
 exports.getAllUsers = async (req, res) => {
   try {
@@ -21,6 +24,21 @@ exports.sendAdminEmail = async (req, res) => {
   if (!subject || !htmlBody) {
     return res.status(400).json({ message: "Subject and Body are required." });
   }
+
+  // Create a unique operation key to prevent duplicate sends
+  const operationKey = `${mode}-${targetUserId || 'bulk'}-${subject.substring(0, 50)}`;
+  
+  // Check if this operation is already in flight
+  if (inFlightOperations.has(operationKey)) {
+    console.log(`⚠️ Duplicate email operation blocked: ${operationKey}`);
+    return res.status(409).json({ 
+      message: "An email operation with the same parameters is already in progress. Please wait." 
+    });
+  }
+  
+  // Mark operation as in-flight
+  inFlightOperations.add(operationKey);
+  console.log(`📧 Starting email operation: ${operationKey}`);
 
   // Email delay configuration (in milliseconds)
   const EMAIL_DELAY_MS = 2000; // 2 seconds between emails to avoid rate limiting
@@ -137,6 +155,9 @@ exports.sendAdminEmail = async (req, res) => {
 
     console.log(`📧 Email send complete: ${successCount} sent, ${failureCount} failed, ${skippedCount} skipped`);
 
+    // Clear the in-flight operation lock
+    inFlightOperations.delete(operationKey);
+
     return res.json({ 
       message: `Email process completed. Sent to ${successCount} users.`, 
       details: { success: successCount, failed: failureCount, skipped: skippedCount } 
@@ -144,6 +165,8 @@ exports.sendAdminEmail = async (req, res) => {
 
   } catch (error) {
     console.error("Error in sendAdminEmail:", error);
+    // Clear the in-flight operation lock on error
+    inFlightOperations.delete(operationKey);
     res.status(500).json({ message: "Server error during email sending." });
   }
 };

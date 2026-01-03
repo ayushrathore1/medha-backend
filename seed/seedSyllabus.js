@@ -33,7 +33,7 @@ const syllabusData = [
       },
       {
         unitNumber: 2,
-        title: "Probability Distributions",
+        title: "Binomial, Normal, Other Distributions & Correlation",
         topics: [
           "Binomial distribution",
           "Normal Distribution",
@@ -49,7 +49,7 @@ const syllabusData = [
       },
       {
         unitNumber: 3,
-        title: "Optimization Fundamentals",
+        title: "Historical Development & Classification of Optimization Problems",
         topics: [
           "Historical development",
           "Engineering Applications of Optimization",
@@ -60,7 +60,7 @@ const syllabusData = [
       },
       {
         unitNumber: 4,
-        title: "Classical Optimization",
+        title: "Classical Optimization using Differential Calculus",
         topics: [
           "Classical Optimization using Differential Calculus",
           "Single Variable Optimization",
@@ -72,7 +72,7 @@ const syllabusData = [
       },
       {
         unitNumber: 5,
-        title: "Linear Programming",
+        title: "Linear Programming:",
         topics: [
           "Simplex method",
           "Two Phase Method",

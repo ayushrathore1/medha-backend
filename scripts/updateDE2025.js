@@ -1,7 +1,19 @@
 /**
- * Script to update Digital Electronics 2025 exam analysis data
+ * Script to update Digital Electronics January 2025 exam analysis data
  * Based on actual January 2025 paper (3E1203)
- * Max Marks: 70 (attempted) | Total Question Marks: 98 (including optionals)
+ * 
+ * Paper Structure:
+ * - Part A: 10 questions × 2 marks = 20 marks (Attempt all)
+ * - Part B: 7 questions × 4 marks = 28 marks (Attempt 5/7 = 20 marks)
+ * - Part C: 5 questions × 10 marks = 50 marks (Attempt 3/5 = 30 marks)
+ * - Total Paper Marks: 70 (Part A: 20 + Part B: 20 + Part C: 30)
+ * 
+ * Unit-wise Weightage:
+ * - Unit 1: 16 marks (22.86%)
+ * - Unit 2: 20 marks (28.57%)
+ * - Unit 3: 14 marks (20.00%)
+ * - Unit 4: 12 marks (17.14%)
+ * - Unit 5: 28 marks (40.00%)
  */
 
 const path = require('path');
@@ -16,33 +28,44 @@ const digitalElectronics2025Data = {
   units: [
     {
       unitSerial: 1,
-      unitName: "Number Systems, Codes & Conversions",
-      totalMarks: 14, // Q2,Q3,Q4,Q5,Q8 Part A (2×5=10) + Q2 Part B (4) = 14
+      unitName: "Fundamental Concepts",
+      totalMarks: 16,
       youtubePlaylistUrl: null,
       questions: [
+        { qCode: "Q1 (Part A)", marks: 2, text: "State and prove De Morgan's theorem." },
         { qCode: "Q2 (Part A)", marks: 2, text: "Convert the following:<br/>a) (BC)<sub>16</sub> = ( )<sub>10</sub><br/>b) (1000011)<sub>2</sub> = ( )<sub>10</sub>" },
-        { qCode: "Q3 (Part A)", marks: 2, text: "Perform the following: Subtraction using 9's complement for 54321 - 41245" },
+        { qCode: "Q3 (Part A)", marks: 2, text: "Perform the following subtraction using 9's complement for the given: 54321 - 41245" },
         { qCode: "Q4 (Part A)", marks: 2, text: "Convert the following to binary and then to gray code: (1111)<sub>16</sub>" },
         { qCode: "Q5 (Part A)", marks: 2, text: "Explain the Binary Codes." },
-        { qCode: "Q8 (Part A)", marks: 2, text: "Write about Gray to the binary converter." },
+        { qCode: "Q8 (Part A)", marks: 2, text: "Write about Gray to the binary convertor." },
         { qCode: "Q2 (Part B)", marks: 4, text: "What do you mean by digital system? Explain the characteristics of digital systems." }
       ]
     },
     {
       unitSerial: 2,
-      unitName: "Boolean Algebra & Minimization Techniques",
-      totalMarks: 22, // Q1 Part A (2) + Q1,Q2 Part C (10×2=20) = 22
+      unitName: "Minimization Techniques",
+      totalMarks: 20,
       youtubePlaylistUrl: null,
       questions: [
-        { qCode: "Q1 (Part A)", marks: 2, text: "State and prove De Morgan's theorem." },
         { qCode: "Q1 (Part C)", marks: 10, text: "Discuss the Quine McCluskey (Tabulation) method using suitable example." },
         { qCode: "Q2 (Part C)", marks: 10, text: "Simplify the Boolean expression using K-map and implement using NAND gates:<br/>F(A,B,C,D) = Σm(0,2,3,8,10,11,12,14)" }
       ]
     },
     {
       unitSerial: 3,
-      unitName: "Combinational Logic Circuits",
-      totalMarks: 12, // Q1,Q3,Q5 Part B (4×3=12)
+      unitName: "Digital Logic Gate Characteristics",
+      totalMarks: 16,
+      youtubePlaylistUrl: null,
+      questions: [
+        { qCode: "Q10 (Part A)", marks: 2, text: "Write a comparison of various logic families." },
+        { qCode: "Q6 (Part B)", marks: 4, text: "Discuss the following concerns with Logic Families and Semiconductor Memories:<br/>a) Noise margin<br/>b) Propagation delay<br/>c) Fan-in, Fan-out" },
+        { qCode: "Q5 (Part C)", marks: 10, text: "Write a short note on:<br/>a) TTL Logic<br/>b) ECL<br/>c) CMOS Digital logic families" }
+      ]
+    },
+    {
+      unitSerial: 4,
+      unitName: "Combinational Circuits",
+      totalMarks: 12,
       youtubePlaylistUrl: null,
       questions: [
         { qCode: "Q1 (Part B)", marks: 4, text: "Explain the:<br/>a) Encoder-Decoders<br/>b) BCD to 7 segment decoder" },
@@ -51,9 +74,9 @@ const digitalElectronics2025Data = {
       ]
     },
     {
-      unitSerial: 4,
-      unitName: "Sequential Logic Circuits (Flip-Flops, Counters, Registers)",
-      totalMarks: 34, // Q6,Q7,Q9 Part A (2×3=6) + Q4,Q7 Part B (4×2=8) + Q3,Q4 Part C (10×2=20) = 34
+      unitSerial: 5,
+      unitName: "Sequential Circuits",
+      totalMarks: 28,
       youtubePlaylistUrl: null,
       questions: [
         { qCode: "Q6 (Part A)", marks: 2, text: "Mention the types of counter." },
@@ -63,17 +86,6 @@ const digitalElectronics2025Data = {
         { qCode: "Q7 (Part B)", marks: 4, text: "Draw and explain the 4-bit Universal shift register." },
         { qCode: "Q3 (Part C)", marks: 10, text: "Design a Mod-10 Asynchronous counter using J-K FFs." },
         { qCode: "Q4 (Part C)", marks: 10, text: "Draw and explain the following using truth table and logic diagrams:<br/>a) J-K Flip flop<br/>b) D-Flip Flop<br/>c) T-Flip flop" }
-      ]
-    },
-    {
-      unitSerial: 5,
-      unitName: "Logic Families & Semiconductor Memories",
-      totalMarks: 16, // Q10 Part A (2) + Q6 Part B (4) + Q5 Part C (10) = 16
-      youtubePlaylistUrl: null,
-      questions: [
-        { qCode: "Q10 (Part A)", marks: 2, text: "Write a comparison of various logic families." },
-        { qCode: "Q6 (Part B)", marks: 4, text: "Discuss the following concerns with Logic Families and Semiconductor Memories:<br/>a) Noise margin<br/>b) Propagation delay<br/>c) Fan-in, Fan-out" },
-        { qCode: "Q5 (Part C)", marks: 10, text: "Write a short note on:<br/>a) TTL Logic<br/>b) ECL<br/>c) CMOS Digital logic families" }
       ]
     }
   ]
@@ -92,16 +104,14 @@ async function updateDigitalElectronics2025() {
       
       await ExamAnalysis.create({
         subjectName: 'Digital Electronics',
-        totalPaperMarks: 98, // Total including optionals
+        totalPaperMarks: 70,
         years: [digitalElectronics2025Data]
       });
       
       console.log('✅ Created Digital Electronics with 2025 data');
     } else {
-      // Update totalPaperMarks to 98 (includes optionals)
-      subject.totalPaperMarks = 98;
+      subject.totalPaperMarks = 70;
       
-      // Find and update 2025 year data
       const yearIndex = subject.years.findIndex(y => y.year === 2025);
       
       if (yearIndex >= 0) {
@@ -121,17 +131,20 @@ async function updateDigitalElectronics2025() {
     const year2025 = updatedSubject.years.find(y => y.year === 2025);
     
     console.log('\n📊 Verification:');
-    console.log(`Total Paper Marks (including optionals): ${updatedSubject.totalPaperMarks}`);
+    console.log(`Total Paper Marks: ${updatedSubject.totalPaperMarks}`);
     console.log('Unit-wise breakdown:');
     
     let totalMarks = 0;
     year2025.units.forEach(unit => {
-      console.log(`  Unit ${unit.unitSerial}: ${unit.unitName} - ${unit.totalMarks} marks (${unit.questions.length} questions)`);
+      const questionsTotal = unit.questions.reduce((sum, q) => sum + q.marks, 0);
+      console.log(`  Unit ${unit.unitSerial}: ${unit.unitName}`);
+      console.log(`    - Total Marks: ${unit.totalMarks}`);
+      console.log(`    - Questions: ${unit.questions.length}`);
       totalMarks += unit.totalMarks;
     });
     
-    console.log(`\n✅ Total computed marks: ${totalMarks}`);
-    console.log('✅ This matches 98 (20 Part A + 28 Part B + 50 Part C)');
+    console.log(`\n✅ Total computed marks across all units: ${totalMarks}`);
+    console.log('📌 Paper Structure: Part A (20) + Part B (20, 5/7) + Part C (30, 3/5) = 70 marks');
 
   } catch (error) {
     console.error('❌ Error:', error);
