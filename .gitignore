@@ -60,3 +60,14 @@ docs/_build/
 *.pem
 *.key
 *.crt
+
+# Test and debug files
+test_output.txt
+debug_db.js
+testGroq.js
+testMail.js
+testResend.js
+
+# Script output files
+*.txt
+!README.txt
