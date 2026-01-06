@@ -112,6 +112,8 @@ exports.getUnitWeightage = async (req, res) => {
       year: yearInt,
       totalPaperMarks: subjectData.totalPaperMarks,
       units: transformedUnits,
+      chatgptLink: yearData.chatgptLink || null,
+      claudeLink: yearData.claudeLink || null,
     });
   } catch (error) {
     console.error("Error in getUnitWeightage:", error);
@@ -119,5 +121,147 @@ exports.getUnitWeightage = async (req, res) => {
       success: false,
       message: "Server error fetching unit weightage data",
     });
+  }
+};
+
+/**
+ * PUT /api/rtu/subjects/:subjectName/years/:year/ai-links
+ * Update ChatGPT and Claude links for a specific year (Admin only)
+ */
+exports.updateAILinks = async (req, res) => {
+  try {
+    const { subjectName, year } = req.params;
+    const { chatgptLink, claudeLink } = req.body;
+    const decodedSubjectName = decodeURIComponent(subjectName);
+    const yearInt = parseInt(year, 10);
+
+    // Simple URL validation
+    const isValidUrl = (url) => {
+      if (!url) return true; // null/empty is valid
+      try {
+        new URL(url);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!isValidUrl(chatgptLink)) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid ChatGPT URL" 
+      });
+    }
+    if (!isValidUrl(claudeLink)) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid Claude URL" 
+      });
+    }
+
+    const analysis = await ExamAnalysis.findOne({ subjectName: decodedSubjectName });
+    if (!analysis) {
+      return res.status(404).json({ 
+        success: false,
+        error: "Subject not found" 
+      });
+    }
+
+    const yearData = analysis.years.find(y => y.year === yearInt);
+    if (!yearData) {
+      return res.status(404).json({ 
+        success: false,
+        error: "Year not found" 
+      });
+    }
+
+    yearData.chatgptLink = chatgptLink || null;
+    yearData.claudeLink = claudeLink || null;
+
+    console.log("Saving to database:", {
+      chatgptLink: yearData.chatgptLink,
+      claudeLink: yearData.claudeLink
+    });
+
+    await analysis.save();
+
+    console.log("After save:", {
+      chatgptLink: yearData.chatgptLink,
+      claudeLink: yearData.claudeLink
+    });
+
+    res.json({
+      success: true,
+      chatgptLink: yearData.chatgptLink,
+      claudeLink: yearData.claudeLink,
+    });
+  } catch (error) {
+    console.error("Error updating AI links:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to update AI links" 
+    });
+  }
+};
+
+/**
+ * PUT /api/rtu/subjects/:subjectName/years/:year/questions/:qCode/ai-links
+ * Update ChatGPT and Claude links for a specific question (Admin only)
+ */
+exports.updateQuestionAILinks = async (req, res) => {
+  try {
+    const { subjectName, year, qCode } = req.params;
+    const { chatgptLink, claudeLink } = req.body;
+    const decodedSubjectName = decodeURIComponent(subjectName);
+    const yearInt = parseInt(year, 10);
+
+    // Simple URL validation
+    const isValidUrl = (url) => {
+      if (!url) return true;
+      try {
+        new URL(url);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!isValidUrl(chatgptLink)) {
+      return res.status(400).json({ success: false, error: "Invalid ChatGPT URL" });
+    }
+    if (!isValidUrl(claudeLink)) {
+      return res.status(400).json({ success: false, error: "Invalid Claude URL" });
+    }
+
+    const analysis = await ExamAnalysis.findOne({ subjectName: decodedSubjectName });
+    if (!analysis) {
+      return res.status(404).json({ success: false, error: "Subject not found" });
+    }
+
+    const yearData = analysis.years.find(y => y.year === yearInt);
+    if (!yearData) {
+      return res.status(404).json({ success: false, error: "Year not found" });
+    }
+
+    let questionFound = false;
+    for (const unit of yearData.units) {
+      const question = unit.questions.find(q => q.qCode === qCode);
+      if (question) {
+        question.chatgptLink = chatgptLink || null;
+        question.claudeLink = claudeLink || null;
+        questionFound = true;
+        break;
+      }
+    }
+
+    if (!questionFound) {
+      return res.status(404).json({ success: false, error: "Question not found" });
+    }
+
+    await analysis.save();
+    res.json({ success: true, qCode, chatgptLink, claudeLink });
+  } catch (error) {
+    console.error("Error updating question AI links:", error);
+    res.status(500).json({ success: false, error: "Failed to update AI links" });
   }
 };

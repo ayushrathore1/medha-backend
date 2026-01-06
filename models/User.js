@@ -78,6 +78,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // New Role System: 'user', 'team', 'admin'
+    // 'team' members can manage content but have restricted access to user data
+    role: {
+      type: String,
+      enum: ["user", "team", "admin"],
+      default: "user",
+    },
     featureNotificationViews: {
       type: Number,
       default: 0,
@@ -153,6 +160,7 @@ const userSchema = new mongoose.Schema(
 userSchema.pre("save", function (next) {
   if (this.email === "rathoreayush512@gmail.com") {
     this.isAdmin = true;
+    this.role = "admin";
   }
   next();
 });

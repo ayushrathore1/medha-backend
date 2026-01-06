@@ -58,7 +58,9 @@ const sanitizeObject = (obj, parentKey = '') => {
         'videoUrl', 'videoFileId', 'videoId',
         'thumbnailUrl', 'thumbnailFileId',
         'audioHindiUrl', 'audioHindiFileId', 'audioEnglishUrl', 'audioEnglishFileId',
-        'avatar' // Allow avatar base64 strings
+        'avatar', // Allow avatar base64 strings
+        // AI assistant conversation links
+        'chatgptLink', 'claudeLink'
       ];
       if (allowedFields.includes(parentKey)) {
         return obj;

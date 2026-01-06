@@ -143,6 +143,14 @@ router.post("/login", async (req, res, next) => {
       user.activityHistory.push(today);
     }
     
+    // Defensive validation: Ensure avatarIndex is valid before saving
+    // This prevents validation errors if database has invalid data
+    if (user.avatarIndex === undefined || user.avatarIndex === null || user.avatarIndex < 0) {
+      user.avatarIndex = 0;
+    } else if (user.avatarIndex > 19) {
+      user.avatarIndex = 19;
+    }
+    
     await user.save();
 
     const payload = { userId: user._id, email: user.email };

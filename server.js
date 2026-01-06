@@ -181,6 +181,9 @@ if (CHARCHA_ENABLED) {
 // Admin routes
 app.use("/api/admin", require("./routes/adminRoutes"));
 
+// Team routes
+app.use("/api/team", require("./routes/teamRoutes"));
+
 // Seed routes (for populating database)
 app.use("/api/seed", require("./routes/seedRoutes"));
 

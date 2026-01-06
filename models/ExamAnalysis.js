@@ -6,7 +6,9 @@ const QuestionSchema = new mongoose.Schema({
   text: { type: String, required: true }, // HTML string
   topic: { type: String, default: null }, // Topic/category for the question
   imageUrl: { type: String, default: null }, // ImageKit URL for question image
-  imageFileId: { type: String, default: null } // ImageKit file ID for deletion
+  imageFileId: { type: String, default: null }, // ImageKit file ID for deletion
+  chatgptLink: { type: String, default: null }, // ChatGPT conversation link
+  claudeLink: { type: String, default: null } // Claude conversation link
 });
 
 const UnitSchema = new mongoose.Schema({

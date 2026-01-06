@@ -18,6 +18,11 @@ router.get("/subjects/:subjectName/years", authMiddleware, rtuWeightageControlle
 // Returns unit weightage data for a specific year
 router.get("/subjects/:subjectName/years/:year/weightage", authMiddleware, rtuWeightageController.getUnitWeightage);
 
+// PUT /api/rtu/subjects/:subjectName/years/:year/questions/:qCode/ai-links
+// Update ChatGPT and Claude links for a specific question (Admin only)
+router.put("/subjects/:subjectName/years/:year/questions/:qCode/ai-links", authMiddleware, adminAuth, rtuWeightageController.updateQuestionAILinks);
+
+
 // ============================================================================
 // QUESTION IMAGE ROUTES (Admin Only)
 // ============================================================================
