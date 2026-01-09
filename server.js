@@ -5,7 +5,11 @@ const cors = require("cors");
 const compression = require("compression");
 
 // Security middleware imports
-const { generalLimiter, authLimiter, aiLimiter } = require("./middleware/rateLimit");
+const {
+  generalLimiter,
+  authLimiter,
+  aiLimiter,
+} = require("./middleware/rateLimit");
 const {
   helmetMiddleware,
   mongoSanitizeMiddleware,
@@ -13,7 +17,7 @@ const {
   requestTimeout,
   securityLogger,
   suspiciousActivityDetector,
-  bodySizeValidator
+  bodySizeValidator,
 } = require("./middleware/security");
 
 // Route imports
@@ -33,9 +37,12 @@ const learnRoutes = require("./routes/learnRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const voiceRoutes = require("./routes/voiceRoutes");
 // Charcha routes are conditionally loaded based on feature flag
-const CHARCHA_ENABLED = process.env.ENABLE_CHARCHA === 'true';
-const charchaRoutes = CHARCHA_ENABLED ? require("./routes/charchaRoutes") : null;
+const CHARCHA_ENABLED = process.env.ENABLE_CHARCHA === "true";
+const charchaRoutes = CHARCHA_ENABLED
+  ? require("./routes/charchaRoutes")
+  : null;
 const { router: authExtraRoutes } = require("./routes/authExtraRoutes");
 
 const app = express();
@@ -43,7 +50,7 @@ const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/medha";
 
 // Trust proxy for accurate rate limiting behind reverse proxies (Vercel, Render, etc.)
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 // ============================================
 // SECURITY MIDDLEWARE (Order matters!)
@@ -57,37 +64,40 @@ app.use(compression());
 
 // 3. CORS configuration
 const allowedOrigins = [
-  'https://medha-revision.vercel.app',
-  'https://medha-revision.pages.dev',
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://localhost:5000',
-  'http://localhost:3002'
+  "https://medha-revision.vercel.app",
+  "https://medha-revision.pages.dev",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:3002",
+  "http://localhost:5173",
+  "http://localhost:5000",
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.warn(`[CORS] Blocked origin: ${origin}`);
-      callback(new Error("CORS policy: This origin is not allowed"));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  credentials: true,
-  maxAge: 86400 // Cache preflight for 24 hours
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.warn(`[CORS] Blocked origin: ${origin}`);
+        callback(new Error("CORS policy: This origin is not allowed"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    credentials: true,
+    maxAge: 86400, // Cache preflight for 24 hours
+  })
+);
 
 // 4. Body size validation (before body parsing)
 app.use(bodySizeValidator);
 
 // 5. Body parsing with size limits
 // Note: bodySizeValidator enforces 10KB for JSON, 50MB for multipart/form-data
-app.use(express.json({ limit: '50mb' })); // High limit here, validator handles enforcement
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: "50mb" })); // High limit here, validator handles enforcement
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // 6. Security middleware stack
 app.use(mongoSanitizeMiddleware); // Prevent NoSQL injection
@@ -111,14 +121,15 @@ app.get("/health", async (req, res) => {
     uptime: process.uptime(),
     memory: {
       used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + " MB",
-      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + " MB"
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + " MB",
     },
     database: {
-      status: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
-      name: mongoose.connection.name || "N/A"
-    }
+      status:
+        mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+      name: mongoose.connection.name || "N/A",
+    },
   };
-  
+
   const statusCode = mongoose.connection.readyState === 1 ? 200 : 503;
   res.status(statusCode).json(healthCheck);
 });
@@ -130,15 +141,15 @@ app.get("/", (req, res) => {
 
 // Test route for verification
 app.get("/api/test-fix", (req, res) => {
-  res.json({ 
+  res.json({
     message: "Server is updated with security enhancements!",
     version: "2.0.0",
     security: {
       rateLimiting: true,
       helmet: true,
       mongoSanitization: true,
-      compression: true
-    }
+      compression: true,
+    },
   });
 });
 
@@ -165,6 +176,7 @@ app.use("/api/learn", learnRoutes);
 
 // AI/Resource-intensive routes with AI rate limiting
 app.use("/api/chatbot", aiLimiter, chatbotRoutes);
+app.use("/api/voice", aiLimiter, voiceRoutes);
 app.use("/api/chat", chatHistoryRoutes);
 app.use("/api/ocr", aiLimiter, ocrRoutes);
 app.use("/api/messages", messageRoutes);
@@ -195,21 +207,21 @@ app.use("/api/seed", require("./routes/seedRoutes"));
 app.use((req, res, next) => {
   res.status(404).json({
     success: false,
-    message: `Route ${req.method} ${req.path} not found`
+    message: `Route ${req.method} ${req.path} not found`,
   });
 });
 
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(`[ERROR] ${err.message}`, err.stack);
-  
+
   // Don't leak error details in production
-  const isProduction = process.env.NODE_ENV === 'production';
-  
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.status(err.status || 500).json({
     success: false,
-    message: isProduction ? 'An error occurred' : err.message,
-    ...(isProduction ? {} : { stack: err.stack })
+    message: isProduction ? "An error occurred" : err.message,
+    ...(isProduction ? {} : { stack: err.stack }),
   });
 });
 
@@ -223,7 +235,7 @@ const mongoOptions = {
   minPoolSize: 10, // Maintain minimum connections
   serverSelectionTimeoutMS: 5000, // Timeout for server selection
   socketTimeoutMS: 45000, // Socket timeout
-  family: 4 // Use IPv4
+  family: 4, // Use IPv4
 };
 
 // Graceful shutdown handling
@@ -231,35 +243,35 @@ let server;
 
 const gracefulShutdown = async (signal) => {
   console.log(`\n[${signal}] Graceful shutdown initiated...`);
-  
+
   if (server) {
     server.close(() => {
-      console.log('✅ HTTP server closed');
+      console.log("✅ HTTP server closed");
     });
   }
-  
+
   try {
     await mongoose.connection.close();
-    console.log('✅ MongoDB connection closed');
+    console.log("✅ MongoDB connection closed");
     process.exit(0);
   } catch (err) {
-    console.error('❌ Error during shutdown:', err);
+    console.error("❌ Error during shutdown:", err);
     process.exit(1);
   }
 };
 
 // Handle termination signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('[UNCAUGHT EXCEPTION]', err);
-  gracefulShutdown('UNCAUGHT EXCEPTION');
+process.on("uncaughtException", (err) => {
+  console.error("[UNCAUGHT EXCEPTION]", err);
+  gracefulShutdown("UNCAUGHT EXCEPTION");
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[UNHANDLED REJECTION]', reason);
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[UNHANDLED REJECTION]", reason);
 });
 
 // Connect to MongoDB and start the server
@@ -267,16 +279,18 @@ mongoose
   .connect(MONGO_URI, mongoOptions)
   .then(() => {
     console.log("✅ Connected to MongoDB");
-    console.log(`📊 Connection pool: ${mongoOptions.maxPoolSize} max connections`);
+    console.log(
+      `📊 Connection pool: ${mongoOptions.maxPoolSize} max connections`
+    );
     console.log("🔒 Security middleware: Enabled");
     console.log("⚡ Rate limiting: Enabled");
     console.log("🗜️  Compression: Enabled");
-    
+
     server = app.listen(PORT, () => {
       console.log(`🚀 MEDHA backend running at http://localhost:${PORT}`);
       console.log(`🏥 Health check: http://localhost:${PORT}/health`);
     });
-    
+
     // Set server timeout
     server.timeout = 30000;
     server.keepAliveTimeout = 65000;

@@ -391,7 +391,7 @@ exports.inviteTeamMember = async (req, res) => {
                               <tbody>
                                 <tr>
                                   <td style="padding: 0px 20px">
-                                    <img src="https://ik.imagekit.io/ayushrathore1/4.png" width="560" height="526" style="display: block; width: 100%; height: auto; max-width: 100%;" />
+                                    <img src="https://ik.imagekit.io/ayushrathore1/MEDHA%20Revision%20Logo%20(5)/8.svg?updatedAt=1767677218616" width="128" height="128" style="display: block; width: 128px; height: 128px; max-width: 100%; object-fit: contain;" />
                                   </td>
                                 </tr>
                                 <tr><td style="font-size: 0; height: 16px">&nbsp;</td></tr>
@@ -472,7 +472,7 @@ exports.inviteTeamMember = async (req, res) => {
                                 <tr>
                                   <td style="padding: 0px 20px">
                                     <a href="https://medha-revision.vercel.app" target="_blank" style="display: block; text-decoration: none;">
-                                      <img src="https://ik.imagekit.io/ayushrathore1/4.png?updatedAt=1767635595817" width="203" height="134" style="display: block; width: 100%; max-width: 203px; height: auto;" />
+                                      <img src="https://ik.imagekit.io/ayushrathore1/MEDHA%20Revision%20Logo%20(5)/8.svg?updatedAt=1767677218616" width="100" height="100" style="display: block; width: 100px; max-width: 100px; height: auto; object-fit: contain;" />
                                     </a>
                                   </td>
                                 </tr>

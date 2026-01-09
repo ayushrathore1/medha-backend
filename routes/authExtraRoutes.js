@@ -116,7 +116,7 @@ router.post("/forgot-password", async (req, res) => {
         <td align="center" style="padding: 40px 20px 0 20px;">
           <span class="decoration-text">✨ 🔐 ✨</span>
           <div style="padding-top: 15px;">
-            <img src="https://ik.imagekit.io/ayushrathore1/Medha/image.png?updatedAt=1766938759500" alt="Medha Revision" width="160" style="display: block; outline: none;" />
+            <img src="https://ik.imagekit.io/ayushrathore1/MEDHA%20Revision%20Logo%20(5)/6.svg?updatedAt=1767677218473" alt="Medha Revision" width="120" style="display: block; outline: none; object-fit: contain;" />
           </div>
         </td>
       </tr>
@@ -305,7 +305,7 @@ router.post("/admin/trigger-reset", auth, adminAuth, async (req, res) => {
         <td align="center" style="padding: 40px 20px 0 20px;">
           <span class="decoration-text">✨ 🔐 ✨</span>
           <div style="padding-top: 15px;">
-            <img src="https://ik.imagekit.io/ayushrathore1/Medha/image.png?updatedAt=1766938759500" alt="Medha Revision" width="160" style="display: block; outline: none;" />
+            <img src="https://ik.imagekit.io/ayushrathore1/MEDHA%20Revision%20Logo%20(5)/6.svg?updatedAt=1767677218473" alt="Medha Revision" width="120" style="display: block; outline: none; object-fit: contain;" />
           </div>
         </td>
       </tr>

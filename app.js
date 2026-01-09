@@ -1,5 +1,5 @@
 require("dotenv").config();
-const cors = require('cors');
+const cors = require("cors");
 const express = require("express");
 const mongoose = require("mongoose");
 const morgan = require("morgan");
@@ -14,6 +14,7 @@ const flashcardRoutes = require("./routes/flashcardRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 const ocrRoutes = require("./routes/ocrRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
+const voiceRoutes = require("./routes/voiceRoutes");
 const {
   router: authExtraRoutes,
   sendWelcomeEmail,
@@ -21,13 +22,13 @@ const {
 
 // Replace these origins with your actual deployed frontend URLs!
 const allowedOrigins = [
-  'https://medha-revision.vercel.app',
-  'https://medha-revision.pages.dev',
-  'https://medha-revision.pages.dev/',
-  'http://localhost:3000',
-  'http://localhost:5000',
+  "https://medha-revision.vercel.app",
+  "https://medha-revision.pages.dev",
+  "https://medha-revision.pages.dev/",
+  "http://localhost:3000",
+  "http://localhost:5000",
 ];
-  // add more if needed
+// add more if needed
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -35,22 +36,24 @@ const errorHandler = require("./middleware/errorHandler");
 const app = express();
 
 // Middlewares
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin like mobile apps or curl requests
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS policy: This origin is not allowed"));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin like mobile apps or curl requests
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS policy: This origin is not allowed"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(morgan("dev"));
 
 // Serve static files for uploads (image access)
@@ -65,6 +68,7 @@ app.use("/api/flashcards", flashcardRoutes); // <-- Flashcards route for manual 
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/voice", voiceRoutes);
 const notificationRoutes = require("./routes/notificationRoutes");
 
 // ... (other route imports)

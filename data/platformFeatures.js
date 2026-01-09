@@ -79,7 +79,7 @@ IMAGE ASSETS AVAILABLE FOR USE:
 - AI Flashcards: "https://ik.imagekit.io/ayushrathore1/Medha/flashcards_ss?updatedAt=1765728832385"
 - RTU PYQs Page: "https://ik.imagekit.io/ayushrathore1/Medha/rtuExams_ss.png?updatedAt=1765727195646"
 - Dashboard: "https://ik.imagekit.io/ayushrathore1/Medha/Dashboard_ss?updatedAt=1765727053177"
-- Medha Logo: "https://ik.imagekit.io/ayushrathore1/logo.png?updatedAt=1758343718570"
+- Medha Logo: "https://ik.imagekit.io/ayushrathore1/MEDHA%20Revision%20Logo%20(5)/6.svg?updatedAt=1767677218473"
 `;
 
 module.exports = PLATFORM_FEATURES;
