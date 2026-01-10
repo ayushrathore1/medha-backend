@@ -712,8 +712,12 @@ router.post(
   upload.single("image"),
   async (req, res) => {
     try {
-      const { isAdmin, role } = req.user || {};
-      if (!isAdmin && role !== "team") {
+      // Fetch user to check admin/team status
+      const User = require("../models/User");
+      const user = await User.findById(req.userId);
+      const hasAccess =
+        user && (user.isAdmin || user.role === "admin" || user.role === "team");
+      if (!hasAccess) {
         return res
           .status(403)
           .json({ success: false, message: "Admin/Team access required" });
@@ -787,8 +791,12 @@ router.post(
 // DELETE /api/learn/:id/slide/:step/voice - Delete voice note
 router.delete("/:id/slide/:step/voice", authMiddleware, async (req, res) => {
   try {
-    const { isAdmin, role } = req.user || {};
-    if (!isAdmin && role !== "team") {
+    // Fetch user to check admin/team status
+    const User = require("../models/User");
+    const user = await User.findById(req.userId);
+    const hasAccess =
+      user && (user.isAdmin || user.role === "admin" || user.role === "team");
+    if (!hasAccess) {
       return res
         .status(403)
         .json({ success: false, message: "Admin/Team access required" });
@@ -942,12 +950,10 @@ router.post(
       const audioToTranscribe =
         audioUrl || content.audioHindiUrl || content.audioEnglishUrl;
       if (!audioToTranscribe) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "No audio URL available for transcription",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "No audio URL available for transcription",
+        });
       }
 
       console.log(`🎤 Starting transcription for ${animationId}...`);

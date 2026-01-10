@@ -188,15 +188,22 @@ router.delete("/admin/:id", auth, adminAuth, async (req, res) => {
 router.get("/check-admin", auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
-    const hasAccess =
-      user?.isAdmin || user?.role === "admin" || user?.role === "team";
+    const isFullAdmin = user?.isAdmin || user?.role === "admin";
+    const isTeam = user?.role === "team";
+    const hasAccess = isFullAdmin || isTeam;
     res.json({
       isAdmin: hasAccess,
-      isFullAdmin: user?.isAdmin || user?.role === "admin",
+      isFullAdmin: isFullAdmin,
+      isTeam: isTeam,
       role: user?.role || "user",
     });
   } catch (error) {
-    res.json({ isAdmin: false, isFullAdmin: false, role: "user" });
+    res.json({
+      isAdmin: false,
+      isFullAdmin: false,
+      isTeam: false,
+      role: "user",
+    });
   }
 });
 

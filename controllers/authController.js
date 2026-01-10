@@ -59,7 +59,7 @@ exports.login = async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ message: "All fields are required." });
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
     if (!user)
       return res.status(401).json({ message: "Invalid email or password." });
 
@@ -72,10 +72,10 @@ exports.login = async (req, res) => {
     // Streak Logic
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     let streak = user.streak || 0;
     let lastActive = user.lastActiveDate ? new Date(user.lastActiveDate) : null;
-    
+
     if (lastActive) {
       lastActive.setHours(0, 0, 0, 0);
       const diffTime = Math.abs(today - lastActive);
@@ -109,7 +109,8 @@ exports.login = async (req, res) => {
         university: user.university,
         branch: user.branch,
         gender: user.gender,
-        isAdmin: user.isAdmin,
+        isAdmin: user.isAdmin || user.role === "admin" || user.role === "team",
+        role: user.role || "user",
       },
       token,
     });
