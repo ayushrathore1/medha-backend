@@ -843,7 +843,7 @@ router.get("/animation/:animationId/audio", async (req, res) => {
     const content = await LearnContent.findOne({
       animationId: animationId,
     }).select(
-      "audioHindiUrl audioEnglishUrl audioTranscript manualSlideTimings animationSteps"
+      "audioHindiUrl audioEnglishUrl audioTranscript manualSlideTimings animationSteps partAudios"
     );
 
     if (!content) {
@@ -860,12 +860,104 @@ router.get("/animation/:animationId/audio", async (req, res) => {
       audioTranscript: content.audioTranscript || null,
       manualSlideTimings: content.manualSlideTimings || {},
       totalSteps: content.animationSteps || 0,
+      partAudios: content.partAudios || [],
     });
   } catch (error) {
     console.error("Error fetching animation audio:", error);
     res.status(500).json({ success: false, message: "Failed to fetch audio" });
   }
 });
+
+// PUT /api/learn/animation/:animationId/part-audio/:partNumber - Upload/update audio for a specific part
+router.put(
+  "/animation/:animationId/part-audio/:partNumber",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      // Check admin/team access
+      const User = require("../models/User");
+      const user = await User.findById(req.userId);
+      const hasAccess =
+        user && (user.isAdmin || user.role === "admin" || user.role === "team");
+      if (!hasAccess) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Admin/Team access required" });
+      }
+
+      const { animationId } = req.params;
+      const partNumber = parseInt(req.params.partNumber);
+      const { 
+        partName, 
+        startScene, 
+        endScene, 
+        audioHindiUrl, 
+        audioHindiFileId,
+        audioEnglishUrl,
+        audioEnglishFileId,
+        audioDuration 
+      } = req.body;
+
+      const content = await LearnContent.findOne({ animationId });
+      if (!content) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Animation not found" });
+      }
+
+      // Initialize partAudios if doesn't exist
+      if (!content.partAudios) {
+        content.partAudios = [];
+      }
+
+      // Find existing part or create new
+      let partIndex = content.partAudios.findIndex(p => p.partNumber === partNumber);
+      
+      if (partIndex === -1) {
+        // Add new part
+        content.partAudios.push({
+          partNumber,
+          partName: partName || `Part ${partNumber}`,
+          startScene: startScene || 1,
+          endScene: endScene || 1,
+          audioHindiUrl,
+          audioHindiFileId,
+          audioEnglishUrl,
+          audioEnglishFileId,
+          audioDuration,
+        });
+      } else {
+        // Update existing part
+        const part = content.partAudios[partIndex];
+        if (partName) part.partName = partName;
+        if (startScene !== undefined) part.startScene = startScene;
+        if (endScene !== undefined) part.endScene = endScene;
+        if (audioHindiUrl !== undefined) part.audioHindiUrl = audioHindiUrl;
+        if (audioHindiFileId) part.audioHindiFileId = audioHindiFileId;
+        if (audioEnglishUrl !== undefined) part.audioEnglishUrl = audioEnglishUrl;
+        if (audioEnglishFileId) part.audioEnglishFileId = audioEnglishFileId;
+        if (audioDuration !== undefined) part.audioDuration = audioDuration;
+      }
+
+      // Sort by partNumber
+      content.partAudios.sort((a, b) => a.partNumber - b.partNumber);
+      
+      await content.save();
+
+      res.json({
+        success: true,
+        message: `Part ${partNumber} audio saved successfully`,
+        partAudios: content.partAudios,
+      });
+    } catch (error) {
+      console.error("Error saving part audio:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to save part audio" });
+    }
+  }
+);
+
 
 // POST /api/learn/animation/:animationId/timings - Save manual slide timings
 router.post(

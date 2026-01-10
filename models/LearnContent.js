@@ -130,6 +130,35 @@ const LearnContentSchema = new mongoose.Schema({
     type: String // ImageKit file ID for deletion
   },
   
+  // Multi-part audio support (for one-shot animations with multiple sections)
+  // Each part has its own audio file and sync data
+  partAudios: [{
+    partNumber: { type: Number, required: true },  // 1, 2, 3, 4...
+    partName: { type: String },                     // e.g., "Exception Handling"
+    startScene: { type: Number },                   // First scene of this part
+    endScene: { type: Number },                     // Last scene of this part
+    audioHindiUrl: { type: String },
+    audioHindiFileId: { type: String },
+    audioEnglishUrl: { type: String },
+    audioEnglishFileId: { type: String },
+    audioDuration: { type: Number },                // Duration in seconds
+    transcript: {
+      segments: [{
+        start: { type: Number },
+        end: { type: Number },
+        text: { type: String },
+        slideNumber: { type: Number }
+      }],
+      language: { type: String, default: 'hi' },
+      transcribedAt: { type: Date }
+    },
+    manualSlideTimings: {
+      type: Map,
+      of: Number,
+      default: {}
+    }
+  }],
+  
   // Audio transcript for auto-sync (generated via Whisper API)
   audioTranscript: {
     segments: [{
