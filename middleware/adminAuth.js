@@ -18,9 +18,9 @@ const adminAuth = async (req, res, next) => {
       return res.status(401).json({ error: "User not found" });
     }
 
-    if (!user.isAdmin) {
-      console.log("AdminAuth: User is not admin:", user.email, "isAdmin:", user.isAdmin);
-      return res.status(403).json({ error: "Admin access required" });
+    if (!user.isAdmin && user.role !== 'team') {
+      console.log("AdminAuth: User is not admin/team:", user.email, "role:", user.role);
+      return res.status(403).json({ error: "Admin/Team access required" });
     }
 
     console.log("AdminAuth: Access granted for admin:", user.email);
