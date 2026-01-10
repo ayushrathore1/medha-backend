@@ -206,17 +206,20 @@ router.get("/:contentId", authMiddleware, async (req, res) => {
 });
 
 // Admin routes for managing content
-// POST /api/learn/admin/content - Create new content (admin only)
+// POST /api/learn/admin/content - Create new content (admin/team)
 router.post("/admin/content", authMiddleware, async (req, res) => {
   try {
-    // Check if user is admin
+    // Check if user is admin or team member
     const User = require("../models/User");
     const user = await User.findById(req.userId);
 
-    if (!user || !user.isAdmin) {
+    if (
+      !user ||
+      (!user.isAdmin && user.role !== "admin" && user.role !== "team")
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Admin access required",
+        message: "Admin/Team access required",
       });
     }
 
@@ -296,14 +299,17 @@ router.post("/admin/content", authMiddleware, async (req, res) => {
 // GET /api/learn/admin/imagekit-auth - Get ImageKit authentication for uploads
 router.get("/admin/imagekit-auth", authMiddleware, async (req, res) => {
   try {
-    // Check if user is admin
+    // Check if user is admin or team member
     const User = require("../models/User");
     const user = await User.findById(req.userId);
 
-    if (!user || !user.isAdmin) {
+    if (
+      !user ||
+      (!user.isAdmin && user.role !== "admin" && user.role !== "team")
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Admin access required",
+        message: "Admin/Team access required",
       });
     }
 
@@ -341,16 +347,19 @@ router.get("/admin/imagekit-auth", authMiddleware, async (req, res) => {
   }
 });
 
-// PATCH /api/learn/admin/content/:contentId - Update content (admin only)
+// PATCH /api/learn/admin/content/:contentId - Update content (admin/team)
 router.patch("/admin/content/:contentId", authMiddleware, async (req, res) => {
   try {
     const User = require("../models/User");
     const user = await User.findById(req.userId);
 
-    if (!user || !user.isAdmin) {
+    if (
+      !user ||
+      (!user.isAdmin && user.role !== "admin" && user.role !== "team")
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Admin access required",
+        message: "Admin/Team access required",
       });
     }
 
@@ -447,16 +456,19 @@ router.patch("/admin/content/:contentId", authMiddleware, async (req, res) => {
   }
 });
 
-// DELETE /api/learn/admin/content/:contentId - Delete content (admin only)
+// DELETE /api/learn/admin/content/:contentId - Delete content (admin/team)
 router.delete("/admin/content/:contentId", authMiddleware, async (req, res) => {
   try {
     const User = require("../models/User");
     const user = await User.findById(req.userId);
 
-    if (!user || !user.isAdmin) {
+    if (
+      !user ||
+      (!user.isAdmin && user.role !== "admin" && user.role !== "team")
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Admin access required",
+        message: "Admin/Team access required",
       });
     }
 
@@ -503,16 +515,19 @@ router.delete("/admin/content/:contentId", authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/learn/admin/subjects - Get list of available subjects for admin
+// GET /api/learn/admin/subjects - Get list of available subjects for admin/team
 router.get("/admin/subjects", authMiddleware, async (req, res) => {
   try {
     const User = require("../models/User");
     const user = await User.findById(req.userId);
 
-    if (!user || !user.isAdmin) {
+    if (
+      !user ||
+      (!user.isAdmin && user.role !== "admin" && user.role !== "team")
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Admin access required",
+        message: "Admin/Team access required",
       });
     }
 
@@ -819,7 +834,9 @@ router.get("/animation/:animationId/audio", async (req, res) => {
 
     const content = await LearnContent.findOne({
       animationId: animationId,
-    }).select("audioHindiUrl audioEnglishUrl audioTranscript manualSlideTimings animationSteps");
+    }).select(
+      "audioHindiUrl audioEnglishUrl audioTranscript manualSlideTimings animationSteps"
+    );
 
     if (!content) {
       return res.json({
@@ -879,7 +896,9 @@ router.post(
       });
     } catch (error) {
       console.error("Error saving timings:", error);
-      res.status(500).json({ success: false, message: "Failed to save timings" });
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to save timings" });
     }
   }
 );
@@ -888,7 +907,7 @@ router.post(
 const formatSeconds = (seconds) => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
 // POST /api/learn/animation/:animationId/transcribe - Auto-transcribe audio and map to slides
@@ -920,11 +939,15 @@ router.post(
       }
 
       // Get audio URL (use provided or fallback to stored)
-      const audioToTranscribe = audioUrl || content.audioHindiUrl || content.audioEnglishUrl;
+      const audioToTranscribe =
+        audioUrl || content.audioHindiUrl || content.audioEnglishUrl;
       if (!audioToTranscribe) {
         return res
           .status(400)
-          .json({ success: false, message: "No audio URL available for transcription" });
+          .json({
+            success: false,
+            message: "No audio URL available for transcription",
+          });
       }
 
       console.log(`🎤 Starting transcription for ${animationId}...`);
@@ -937,7 +960,9 @@ router.post(
         timeout: 120000,
       });
 
-      console.log(`   Downloaded: ${(audioResponse.data.length / 1024 / 1024).toFixed(2)} MB`);
+      console.log(
+        `   Downloaded: ${(audioResponse.data.length / 1024 / 1024).toFixed(2)} MB`
+      );
 
       // Transcribe using Groq Whisper API
       const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -968,13 +993,19 @@ router.post(
 
       if (!whisperResponse.ok) {
         const errorText = await whisperResponse.text();
-        console.error(`   Whisper API error: ${whisperResponse.status} - ${errorText}`);
+        console.error(
+          `   Whisper API error: ${whisperResponse.status} - ${errorText}`
+        );
         throw new Error(`Transcription failed: ${whisperResponse.status}`);
       }
 
       const transcriptData = await whisperResponse.json();
-      console.log(`   Transcription complete: ${transcriptData.segments?.length || 0} segments`);
-      console.log(`   Duration: ${transcriptData.duration?.toFixed(2) || 0} seconds`);
+      console.log(
+        `   Transcription complete: ${transcriptData.segments?.length || 0} segments`
+      );
+      console.log(
+        `   Duration: ${transcriptData.duration?.toFixed(2) || 0} seconds`
+      );
 
       const totalSteps = content.animationSteps || 104;
       const audioDuration = transcriptData.duration || 551;
@@ -984,134 +1015,481 @@ router.post(
       // Uses Groq LLM to match transcript segments to slide content
       // ========================================
       console.log(`   🤖 Starting AI-powered slide mapping...`);
-      
+
       // ACTUAL SLIDE CONTENT extracted from animation components
       // Each entry has the slide number and the visible text content
       const slideContent = [
         // INTRO (Slide 1)
-        { slide: 1, content: "Unit 5 Welcome, C++ OOP, exception handling templates stream classes file handling, four pillars" },
-        
+        {
+          slide: 1,
+          content:
+            "Unit 5 Welcome, C++ OOP, exception handling templates stream classes file handling, four pillars",
+        },
+
         // EXCEPTION HANDLING (Slides 2-26)
-        { slide: 2, content: "Exception Handling title, RTU OOP UNIT 5, Handling Runtime Errors Safely" },
-        { slide: 3, content: "THINGS THAT GO WRONG, Divide by zero, File not found, Invalid input, Out of memory" },
-        { slide: 4, content: "CRASH EXAMPLE, int a = 10, int b = 0, cout << a / b, PROGRAM CRASHED" },
-        { slide: 5, content: "THE TRADITIONAL PROBLEM, Running program, Processing user data, Connected to database, Program terminated unexpectedly" },
-        { slide: 6, content: "THE SOLUTION PROTECTION, Risky code, a / b, file.open(), new int[size], Protect risky code with exception handling" },
-        { slide: 7, content: "THREE MAGIC KEYWORDS, try Attempt risky code, throw Signal an error, catch Handle the error" },
-        { slide: 8, content: "FIRST TRY-CATCH EXAMPLE, TRY BLOCK, if(b==0) throw Error, CATCH BLOCK, catch(const char* msg)" },
-        { slide: 9, content: "TWO POSSIBLE PATHS, Normal: try no error continue, Error: try throw catch" },
-        { slide: 10, content: "WHAT CAN BE THROWN, throw 10 int, throw File not found string, throw 3.14 double" },
-        { slide: 11, content: "TYPE MATCHING, throw matches catch(int), throw string matches catch(const char*)" },
-        { slide: 12, content: "MULTIPLE CATCH BLOCKS, catch int, catch const char*, catch double, Different types different handlers" },
-        { slide: 13, content: "DEFAULT CATCH, catch(...) catches anything, Safety net for unknown exceptions" },
-        { slide: 14, content: "STACK UNWINDING, funcC throws, funcB calls funcC, funcA calls funcB, main calls funcA, Exception travels up" },
-        { slide: 15, content: "Stack unwinding continued, Exception travels up functions clean up, destructors automatically call" },
-        { slide: 16, content: "Custom exception class, class MyException, what() method, Error message" },
-        { slide: 17, content: "Re-throw exception, catch partial handle, throw; re-throws same exception" },
-        { slide: 18, content: "Exception specifications, noexcept keyword, Function promises no throws" },
-        { slide: 19, content: "Best practices, Catch by reference, Use standard exceptions, RAII" },
-        { slide: 20, content: "Exception handling summary, try catch throw, Stack unwinding, Custom exceptions" },
-        { slide: 21, content: "Exception handling real world, Banking systems, Railway systems, File operations" },
-        { slide: 22, content: "Memory management with exceptions, Resource cleanup, Smart pointers recommended" },
-        { slide: 23, content: "Exception vs error codes, Exception advantages, Separates error handling from logic" },
-        { slide: 24, content: "std::exception hierarchy, runtime_error, logic_error, bad_alloc, Standard exceptions" },
-        { slide: 25, content: "Exception handling complete, Ready for Templates" },
+        {
+          slide: 2,
+          content:
+            "Exception Handling title, RTU OOP UNIT 5, Handling Runtime Errors Safely",
+        },
+        {
+          slide: 3,
+          content:
+            "THINGS THAT GO WRONG, Divide by zero, File not found, Invalid input, Out of memory",
+        },
+        {
+          slide: 4,
+          content:
+            "CRASH EXAMPLE, int a = 10, int b = 0, cout << a / b, PROGRAM CRASHED",
+        },
+        {
+          slide: 5,
+          content:
+            "THE TRADITIONAL PROBLEM, Running program, Processing user data, Connected to database, Program terminated unexpectedly",
+        },
+        {
+          slide: 6,
+          content:
+            "THE SOLUTION PROTECTION, Risky code, a / b, file.open(), new int[size], Protect risky code with exception handling",
+        },
+        {
+          slide: 7,
+          content:
+            "THREE MAGIC KEYWORDS, try Attempt risky code, throw Signal an error, catch Handle the error",
+        },
+        {
+          slide: 8,
+          content:
+            "FIRST TRY-CATCH EXAMPLE, TRY BLOCK, if(b==0) throw Error, CATCH BLOCK, catch(const char* msg)",
+        },
+        {
+          slide: 9,
+          content:
+            "TWO POSSIBLE PATHS, Normal: try no error continue, Error: try throw catch",
+        },
+        {
+          slide: 10,
+          content:
+            "WHAT CAN BE THROWN, throw 10 int, throw File not found string, throw 3.14 double",
+        },
+        {
+          slide: 11,
+          content:
+            "TYPE MATCHING, throw matches catch(int), throw string matches catch(const char*)",
+        },
+        {
+          slide: 12,
+          content:
+            "MULTIPLE CATCH BLOCKS, catch int, catch const char*, catch double, Different types different handlers",
+        },
+        {
+          slide: 13,
+          content:
+            "DEFAULT CATCH, catch(...) catches anything, Safety net for unknown exceptions",
+        },
+        {
+          slide: 14,
+          content:
+            "STACK UNWINDING, funcC throws, funcB calls funcC, funcA calls funcB, main calls funcA, Exception travels up",
+        },
+        {
+          slide: 15,
+          content:
+            "Stack unwinding continued, Exception travels up functions clean up, destructors automatically call",
+        },
+        {
+          slide: 16,
+          content:
+            "Custom exception class, class MyException, what() method, Error message",
+        },
+        {
+          slide: 17,
+          content:
+            "Re-throw exception, catch partial handle, throw; re-throws same exception",
+        },
+        {
+          slide: 18,
+          content:
+            "Exception specifications, noexcept keyword, Function promises no throws",
+        },
+        {
+          slide: 19,
+          content:
+            "Best practices, Catch by reference, Use standard exceptions, RAII",
+        },
+        {
+          slide: 20,
+          content:
+            "Exception handling summary, try catch throw, Stack unwinding, Custom exceptions",
+        },
+        {
+          slide: 21,
+          content:
+            "Exception handling real world, Banking systems, Railway systems, File operations",
+        },
+        {
+          slide: 22,
+          content:
+            "Memory management with exceptions, Resource cleanup, Smart pointers recommended",
+        },
+        {
+          slide: 23,
+          content:
+            "Exception vs error codes, Exception advantages, Separates error handling from logic",
+        },
+        {
+          slide: 24,
+          content:
+            "std::exception hierarchy, runtime_error, logic_error, bad_alloc, Standard exceptions",
+        },
+        {
+          slide: 25,
+          content: "Exception handling complete, Ready for Templates",
+        },
         { slide: 26, content: "Transition to Templates, Next topic preview" },
-        
+
         // TEMPLATES (Slides 27-52)
-        { slide: 27, content: "Templates title, RTU OOP UNIT 5, Generic Programming" },
-        { slide: 28, content: "THE PROBLEM, int add(int a, int b), float add(float a, float b), double add(double a, double b), Same logic repeated" },
-        { slide: 29, content: "Code duplication problem, Writing same function multiple times, Bad practice" },
-        { slide: 30, content: "GENERIC SOLUTION, template<typename T>, T add(T a, T b), return a + b" },
-        { slide: 31, content: "Type parameter T, placeholder, Compiler substitutes actual type" },
-        { slide: 32, content: "HOW IT WORKS, add(3, 4), T becomes int, add(2.5f, 3.5f), T becomes float" },
-        { slide: 33, content: "Function template syntax, template<typename T>, Template keyword, Typename or class" },
-        { slide: 34, content: "Multiple type parameters, template<typename T, typename U>, Different types in same template" },
-        { slide: 35, content: "TEMPLATE INSTANTIATION, Compiler generates code, Happens at compile time" },
-        { slide: 36, content: "Compile time, No runtime overhead, Type-safe, Fast as handwritten" },
-        { slide: 37, content: "CLASS TEMPLATES, template<typename T>, class Box, T value, store(T val)" },
-        { slide: 38, content: "Box<int> intBox, Box<string> strBox, Different types same template" },
-        { slide: 39, content: "Class template usage, box.store(42), box.get(), Type-safe containers" },
-        { slide: 40, content: "STL uses templates, vector<int>, map<string,int>, Standard containers" },
-        { slide: 41, content: "TEMPLATE SPECIALIZATION, General template, Specialized version for specific type" },
-        { slide: 42, content: "template<> class Box<bool>, Specialized behavior for bool" },
-        { slide: 43, content: "Partial specialization, Specialize for pointers, template<typename T> class Box<T*>" },
-        { slide: 44, content: "NON-TYPE PARAMETERS, template<typename T, int N>, Array size as parameter" },
-        { slide: 45, content: "template<int N> class Array, Fixed size at compile time" },
-        { slide: 46, content: "Array<10> arr, Size known at compile time, No runtime allocation" },
-        { slide: 47, content: "Default template arguments, template<typename T = int>, Default type" },
-        { slide: 48, content: "Template template parameters, Advanced template usage" },
-        { slide: 49, content: "SFINAE, Substitution Failure Is Not An Error, Template metaprogramming" },
-        { slide: 50, content: "Compile time polymorphism, No virtual functions, No vtable overhead" },
-        { slide: 51, content: "Templates summary, Generic code, Type safety, Compile time" },
-        { slide: 52, content: "Transition to Stream Classes, Next topic preview" },
-        
+        {
+          slide: 27,
+          content: "Templates title, RTU OOP UNIT 5, Generic Programming",
+        },
+        {
+          slide: 28,
+          content:
+            "THE PROBLEM, int add(int a, int b), float add(float a, float b), double add(double a, double b), Same logic repeated",
+        },
+        {
+          slide: 29,
+          content:
+            "Code duplication problem, Writing same function multiple times, Bad practice",
+        },
+        {
+          slide: 30,
+          content:
+            "GENERIC SOLUTION, template<typename T>, T add(T a, T b), return a + b",
+        },
+        {
+          slide: 31,
+          content:
+            "Type parameter T, placeholder, Compiler substitutes actual type",
+        },
+        {
+          slide: 32,
+          content:
+            "HOW IT WORKS, add(3, 4), T becomes int, add(2.5f, 3.5f), T becomes float",
+        },
+        {
+          slide: 33,
+          content:
+            "Function template syntax, template<typename T>, Template keyword, Typename or class",
+        },
+        {
+          slide: 34,
+          content:
+            "Multiple type parameters, template<typename T, typename U>, Different types in same template",
+        },
+        {
+          slide: 35,
+          content:
+            "TEMPLATE INSTANTIATION, Compiler generates code, Happens at compile time",
+        },
+        {
+          slide: 36,
+          content:
+            "Compile time, No runtime overhead, Type-safe, Fast as handwritten",
+        },
+        {
+          slide: 37,
+          content:
+            "CLASS TEMPLATES, template<typename T>, class Box, T value, store(T val)",
+        },
+        {
+          slide: 38,
+          content:
+            "Box<int> intBox, Box<string> strBox, Different types same template",
+        },
+        {
+          slide: 39,
+          content:
+            "Class template usage, box.store(42), box.get(), Type-safe containers",
+        },
+        {
+          slide: 40,
+          content:
+            "STL uses templates, vector<int>, map<string,int>, Standard containers",
+        },
+        {
+          slide: 41,
+          content:
+            "TEMPLATE SPECIALIZATION, General template, Specialized version for specific type",
+        },
+        {
+          slide: 42,
+          content: "template<> class Box<bool>, Specialized behavior for bool",
+        },
+        {
+          slide: 43,
+          content:
+            "Partial specialization, Specialize for pointers, template<typename T> class Box<T*>",
+        },
+        {
+          slide: 44,
+          content:
+            "NON-TYPE PARAMETERS, template<typename T, int N>, Array size as parameter",
+        },
+        {
+          slide: 45,
+          content: "template<int N> class Array, Fixed size at compile time",
+        },
+        {
+          slide: 46,
+          content:
+            "Array<10> arr, Size known at compile time, No runtime allocation",
+        },
+        {
+          slide: 47,
+          content:
+            "Default template arguments, template<typename T = int>, Default type",
+        },
+        {
+          slide: 48,
+          content: "Template template parameters, Advanced template usage",
+        },
+        {
+          slide: 49,
+          content:
+            "SFINAE, Substitution Failure Is Not An Error, Template metaprogramming",
+        },
+        {
+          slide: 50,
+          content:
+            "Compile time polymorphism, No virtual functions, No vtable overhead",
+        },
+        {
+          slide: 51,
+          content: "Templates summary, Generic code, Type safety, Compile time",
+        },
+        {
+          slide: 52,
+          content: "Transition to Stream Classes, Next topic preview",
+        },
+
         // STREAM CLASSES (Slides 53-78)
-        { slide: 53, content: "Stream Classes title, RTU OOP UNIT 5, Input/Output in C++" },
-        { slide: 54, content: "WHAT IS A STREAM, Data flow, Like a river, Input and output" },
-        { slide: 55, content: "INPUT STREAM, Keyboard to program, cin, istream class" },
-        { slide: 56, content: "OUTPUT STREAM, Program to screen, cout, ostream class" },
-        { slide: 57, content: "STREAM OBJECTS, cin is istream object, cout is ostream object" },
-        { slide: 58, content: "Stream operators, << insertion operator, >> extraction operator" },
-        { slide: 59, content: "cout << Hello, Insertion into output stream, Screen display" },
-        { slide: 60, content: "cin >> x, Extraction from input stream, Keyboard input" },
-        { slide: 61, content: "STREAM HIERARCHY, ios base class, istream ostream, iostream" },
-        { slide: 62, content: "Stream insertion overloading, operator<<, friend function, Return ostream&" },
-        { slide: 63, content: "Stream extraction overloading, operator>>, friend function, Return istream&" },
+        {
+          slide: 53,
+          content: "Stream Classes title, RTU OOP UNIT 5, Input/Output in C++",
+        },
+        {
+          slide: 54,
+          content:
+            "WHAT IS A STREAM, Data flow, Like a river, Input and output",
+        },
+        {
+          slide: 55,
+          content: "INPUT STREAM, Keyboard to program, cin, istream class",
+        },
+        {
+          slide: 56,
+          content: "OUTPUT STREAM, Program to screen, cout, ostream class",
+        },
+        {
+          slide: 57,
+          content:
+            "STREAM OBJECTS, cin is istream object, cout is ostream object",
+        },
+        {
+          slide: 58,
+          content:
+            "Stream operators, << insertion operator, >> extraction operator",
+        },
+        {
+          slide: 59,
+          content:
+            "cout << Hello, Insertion into output stream, Screen display",
+        },
+        {
+          slide: 60,
+          content: "cin >> x, Extraction from input stream, Keyboard input",
+        },
+        {
+          slide: 61,
+          content:
+            "STREAM HIERARCHY, ios base class, istream ostream, iostream",
+        },
+        {
+          slide: 62,
+          content:
+            "Stream insertion overloading, operator<<, friend function, Return ostream&",
+        },
+        {
+          slide: 63,
+          content:
+            "Stream extraction overloading, operator>>, friend function, Return istream&",
+        },
         { slide: 64, content: "IOMANIP HEADER, Manipulators, Format output" },
-        { slide: 65, content: "setw(10), Set field width, Right justify by default" },
-        { slide: 66, content: "setprecision(2), Decimal places, Fixed notation" },
+        {
+          slide: 65,
+          content: "setw(10), Set field width, Right justify by default",
+        },
+        {
+          slide: 66,
+          content: "setprecision(2), Decimal places, Fixed notation",
+        },
         { slide: 67, content: "fixed, scientific, Floating point format" },
-        { slide: 68, content: "STREAM STATE FLAGS, goodbit, badbit, failbit, eofbit" },
-        { slide: 69, content: "cin.fail(), Check if operation failed, Returns bool" },
+        {
+          slide: 68,
+          content: "STREAM STATE FLAGS, goodbit, badbit, failbit, eofbit",
+        },
+        {
+          slide: 69,
+          content: "cin.fail(), Check if operation failed, Returns bool",
+        },
         { slide: 70, content: "cin.clear(), Reset error state, Clear flags" },
         { slide: 71, content: "cin.ignore(), Skip characters, Clear buffer" },
-        { slide: 72, content: "Error handling example, Check fail, Clear and retry" },
-        { slide: 73, content: "getline(cin, str), Read entire line, Handles spaces" },
-        { slide: 74, content: "Custom class stream operators, cout << student, cin >> student" },
-        { slide: 75, content: "String streams, stringstream, Parse strings, Format output" },
-        { slide: 76, content: "Stream summary, cin cout, Operators, Manipulators" },
+        {
+          slide: 72,
+          content: "Error handling example, Check fail, Clear and retry",
+        },
+        {
+          slide: 73,
+          content: "getline(cin, str), Read entire line, Handles spaces",
+        },
+        {
+          slide: 74,
+          content:
+            "Custom class stream operators, cout << student, cin >> student",
+        },
+        {
+          slide: 75,
+          content: "String streams, stringstream, Parse strings, Format output",
+        },
+        {
+          slide: 76,
+          content: "Stream summary, cin cout, Operators, Manipulators",
+        },
         { slide: 77, content: "Transition to File Handling, Next topic" },
         { slide: 78, content: "File handling preview, Permanent data storage" },
-        
+
         // FILE HANDLING (Slides 79-104)
-        { slide: 79, content: "File Handling title, RTU OOP UNIT 5, Permanent Data Storage" },
-        { slide: 80, content: "WHY FILES, Program ends data lost, Files persist data, Permanent storage" },
-        { slide: 81, content: "FSTREAM HEADER, #include<fstream>, File stream classes" },
-        { slide: 82, content: "THREE FILE CLASSES, ofstream output write, ifstream input read, fstream both" },
-        { slide: 83, content: "ofstream fout, Output file stream, Write to file" },
-        { slide: 84, content: "ifstream fin, Input file stream, Read from file" },
-        { slide: 85, content: "OPENING A FILE, ofstream fout(myfile.txt), Opens for writing" },
-        { slide: 86, content: "FILE MODES, ios::out, ios::in, ios::app, ios::trunc, ios::binary" },
-        { slide: 87, content: "Writing to file, fout << Hello World, Same as cout" },
-        { slide: 88, content: "CLOSING A FILE, fout.close(), Always close files, Resource cleanup" },
-        { slide: 89, content: "Reading from file, fin >> word, Reads one word, Stops at whitespace" },
-        { slide: 90, content: "getline(fin, line), Read entire line, Better for text" },
-        { slide: 91, content: "CHECK IF OPEN, if(!fin), Check success, Handle errors" },
+        {
+          slide: 79,
+          content:
+            "File Handling title, RTU OOP UNIT 5, Permanent Data Storage",
+        },
+        {
+          slide: 80,
+          content:
+            "WHY FILES, Program ends data lost, Files persist data, Permanent storage",
+        },
+        {
+          slide: 81,
+          content: "FSTREAM HEADER, #include<fstream>, File stream classes",
+        },
+        {
+          slide: 82,
+          content:
+            "THREE FILE CLASSES, ofstream output write, ifstream input read, fstream both",
+        },
+        {
+          slide: 83,
+          content: "ofstream fout, Output file stream, Write to file",
+        },
+        {
+          slide: 84,
+          content: "ifstream fin, Input file stream, Read from file",
+        },
+        {
+          slide: 85,
+          content:
+            "OPENING A FILE, ofstream fout(myfile.txt), Opens for writing",
+        },
+        {
+          slide: 86,
+          content:
+            "FILE MODES, ios::out, ios::in, ios::app, ios::trunc, ios::binary",
+        },
+        {
+          slide: 87,
+          content: "Writing to file, fout << Hello World, Same as cout",
+        },
+        {
+          slide: 88,
+          content:
+            "CLOSING A FILE, fout.close(), Always close files, Resource cleanup",
+        },
+        {
+          slide: 89,
+          content:
+            "Reading from file, fin >> word, Reads one word, Stops at whitespace",
+        },
+        {
+          slide: 90,
+          content: "getline(fin, line), Read entire line, Better for text",
+        },
+        {
+          slide: 91,
+          content: "CHECK IF OPEN, if(!fin), Check success, Handle errors",
+        },
         { slide: 92, content: "if(fin.is_open()), Alternative check method" },
         { slide: 93, content: "fin.eof(), End of file, Loop until done" },
-        { slide: 94, content: "While loop reading, while(getline(fin, line)), Process each line" },
-        { slide: 95, content: "TEXT VS BINARY, Text files human readable, Binary raw memory" },
-        { slide: 96, content: "Binary advantages, Faster, Smaller, Exact data" },
+        {
+          slide: 94,
+          content:
+            "While loop reading, while(getline(fin, line)), Process each line",
+        },
+        {
+          slide: 95,
+          content:
+            "TEXT VS BINARY, Text files human readable, Binary raw memory",
+        },
+        {
+          slide: 96,
+          content: "Binary advantages, Faster, Smaller, Exact data",
+        },
         { slide: 97, content: "Binary file mode, ios::binary, Open as binary" },
-        { slide: 98, content: "write() and read(), Binary operations, Size in bytes" },
-        { slide: 99, content: "Writing structure, fout.write((char*)&student, sizeof(student))" },
-        { slide: 100, content: "Reading structure, fin.read((char*)&student, sizeof(student))" },
+        {
+          slide: 98,
+          content: "write() and read(), Binary operations, Size in bytes",
+        },
+        {
+          slide: 99,
+          content:
+            "Writing structure, fout.write((char*)&student, sizeof(student))",
+        },
+        {
+          slide: 100,
+          content:
+            "Reading structure, fin.read((char*)&student, sizeof(student))",
+        },
         { slide: 101, content: "RANDOM ACCESS, seekg seekp, Jump to position" },
-        { slide: 102, content: "tellg tellp, Get current position, Returns streampos" },
-        { slide: 103, content: "Random access example, 50th student, Jump directly, No scanning" },
-        { slide: 104, content: "File handling summary, ofstream ifstream fstream, text binary, random access, Unit 5 complete" },
+        {
+          slide: 102,
+          content: "tellg tellp, Get current position, Returns streampos",
+        },
+        {
+          slide: 103,
+          content:
+            "Random access example, 50th student, Jump directly, No scanning",
+        },
+        {
+          slide: 104,
+          content:
+            "File handling summary, ofstream ifstream fstream, text binary, random access, Unit 5 complete",
+        },
       ];
 
       // Ask AI to map transcript segments to slides
-      const segmentTexts = (transcriptData.segments || []).map((seg, i) => 
-        `[${i+1}] "${seg.text?.trim()}" (${formatSeconds(seg.start)}-${formatSeconds(seg.end)})`
-      ).join('\n');
-      
+      const segmentTexts = (transcriptData.segments || [])
+        .map(
+          (seg, i) =>
+            `[${i + 1}] "${seg.text?.trim()}" (${formatSeconds(seg.start)}-${formatSeconds(seg.end)})`
+        )
+        .join("\n");
+
       // Format slide content for AI
-      const slideContentText = slideContent.map(s => 
-        `Slide ${s.slide}: ${s.content}`
-      ).join('\n');
+      const slideContentText = slideContent
+        .map((s) => `Slide ${s.slide}: ${s.content}`)
+        .join("\n");
 
       const mappingPrompt = `You are mapping Hindi/Hinglish audio transcript segments to animation slides.
 
@@ -1138,7 +1516,11 @@ OUTPUT:`;
           {
             model: "llama-3.3-70b-versatile",
             messages: [
-              { role: "system", content: "You are a precise mapping assistant. Output only valid JSON." },
+              {
+                role: "system",
+                content:
+                  "You are a precise mapping assistant. Output only valid JSON.",
+              },
               { role: "user", content: mappingPrompt },
             ],
             max_tokens: 4000,
@@ -1155,7 +1537,7 @@ OUTPUT:`;
 
         const aiOutput = aiResponse.data.choices[0].message.content.trim();
         console.log(`   AI mapping response received`);
-        
+
         // Parse AI mapping
         let aiMapping = [];
         try {
@@ -1165,20 +1547,27 @@ OUTPUT:`;
             aiMapping = JSON.parse(jsonMatch[0]);
           }
         } catch (parseErr) {
-          console.error(`   Failed to parse AI mapping, using fallback:`, parseErr.message);
+          console.error(
+            `   Failed to parse AI mapping, using fallback:`,
+            parseErr.message
+          );
         }
 
         // Create segments with AI-mapped slide numbers
         const segments = (transcriptData.segments || []).map((seg, i) => {
-          const aiMatch = aiMapping.find(m => m.segment === i + 1);
+          const aiMatch = aiMapping.find((m) => m.segment === i + 1);
           let slideNumber = aiMatch?.slide;
-          
+
           // Fallback to position-based if AI didn't provide mapping
           if (!slideNumber || slideNumber < 1 || slideNumber > totalSteps) {
             const segmentMidpoint = (seg.start + seg.end) / 2;
-            slideNumber = Math.max(1, Math.min(totalSteps, 
-              Math.ceil((segmentMidpoint / audioDuration) * totalSteps)
-            ));
+            slideNumber = Math.max(
+              1,
+              Math.min(
+                totalSteps,
+                Math.ceil((segmentMidpoint / audioDuration) * totalSteps)
+              )
+            );
           }
 
           return {
@@ -1213,13 +1602,17 @@ OUTPUT:`;
         });
       } catch (aiError) {
         console.error(`   AI mapping failed, using fallback:`, aiError.message);
-        
+
         // Fallback to position-based mapping
         const segments = (transcriptData.segments || []).map((seg, i) => {
           const segmentMidpoint = (seg.start + seg.end) / 2;
-          const slideNumber = Math.max(1, Math.min(totalSteps, 
-            Math.ceil((segmentMidpoint / audioDuration) * totalSteps)
-          ));
+          const slideNumber = Math.max(
+            1,
+            Math.min(
+              totalSteps,
+              Math.ceil((segmentMidpoint / audioDuration) * totalSteps)
+            )
+          );
           return {
             id: i + 1,
             start: seg.start,

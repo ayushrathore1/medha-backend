@@ -11,9 +11,11 @@ const adminAuth = require("../middleware/adminAuth");
 router.post("/", auth, async (req, res) => {
   try {
     const { type, subject, message, priority } = req.body;
-    
+
     if (!subject || !message) {
-      return res.status(400).json({ error: "Subject and message are required" });
+      return res
+        .status(400)
+        .json({ error: "Subject and message are required" });
     }
 
     const user = await User.findById(req.userId);
@@ -32,7 +34,7 @@ router.post("/", auth, async (req, res) => {
     });
 
     await newMessage.save();
-    
+
     res.status(201).json({
       success: true,
       message: "Message sent successfully! We'll get back to you soon.",
@@ -50,7 +52,7 @@ router.get("/my-messages", auth, async (req, res) => {
     const messages = await Message.find({ user: req.userId })
       .sort({ createdAt: -1 })
       .lean();
-    
+
     res.json({ success: true, messages });
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -64,23 +66,23 @@ router.get("/my-messages", auth, async (req, res) => {
 router.get("/admin/all", auth, adminAuth, async (req, res) => {
   try {
     const { status, type, isRead, page = 1, limit = 20 } = req.query;
-    
+
     const filter = {};
     if (status) filter.status = status;
     if (type) filter.type = type;
     if (isRead !== undefined) filter.isRead = isRead === "true";
 
     const skip = (page - 1) * limit;
-    
+
     const messages = await Message.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
-    
+
     const total = await Message.countDocuments(filter);
     const unreadCount = await Message.countDocuments({ isRead: false });
-    
+
     res.json({
       success: true,
       messages,
@@ -101,7 +103,9 @@ router.get("/admin/stats", auth, adminAuth, async (req, res) => {
     const totalMessages = await Message.countDocuments();
     const unreadMessages = await Message.countDocuments({ isRead: false });
     const pendingMessages = await Message.countDocuments({ status: "pending" });
-    const featureRequests = await Message.countDocuments({ type: "feature_request" });
+    const featureRequests = await Message.countDocuments({
+      type: "feature_request",
+    });
     const bugReports = await Message.countDocuments({ type: "bug_report" });
 
     res.json({
@@ -128,11 +132,11 @@ router.patch("/admin/:id/read", auth, adminAuth, async (req, res) => {
       { isRead: true },
       { new: true }
     );
-    
+
     if (!message) {
       return res.status(404).json({ error: "Message not found" });
     }
-    
+
     res.json({ success: true, message });
   } catch (error) {
     console.error("Error marking message as read:", error);
@@ -144,21 +148,19 @@ router.patch("/admin/:id/read", auth, adminAuth, async (req, res) => {
 router.patch("/admin/:id/status", auth, adminAuth, async (req, res) => {
   try {
     const { status, adminNotes } = req.body;
-    
+
     const updateData = {};
     if (status) updateData.status = status;
     if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
-    
-    const message = await Message.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
-    
+
+    const message = await Message.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+    });
+
     if (!message) {
       return res.status(404).json({ error: "Message not found" });
     }
-    
+
     res.json({ success: true, message });
   } catch (error) {
     console.error("Error updating message status:", error);
@@ -170,11 +172,11 @@ router.patch("/admin/:id/status", auth, adminAuth, async (req, res) => {
 router.delete("/admin/:id", auth, adminAuth, async (req, res) => {
   try {
     const message = await Message.findByIdAndDelete(req.params.id);
-    
+
     if (!message) {
       return res.status(404).json({ error: "Message not found" });
     }
-    
+
     res.json({ success: true, message: "Message deleted" });
   } catch (error) {
     console.error("Error deleting message:", error);
@@ -182,13 +184,19 @@ router.delete("/admin/:id", auth, adminAuth, async (req, res) => {
   }
 });
 
-// Check if current user is admin
+// Check if current user is admin or team member
 router.get("/check-admin", auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
-    res.json({ isAdmin: user?.isAdmin || false });
+    const hasAccess =
+      user?.isAdmin || user?.role === "admin" || user?.role === "team";
+    res.json({
+      isAdmin: hasAccess,
+      isFullAdmin: user?.isAdmin || user?.role === "admin",
+      role: user?.role || "user",
+    });
   } catch (error) {
-    res.json({ isAdmin: false });
+    res.json({ isAdmin: false, isFullAdmin: false, role: "user" });
   }
 });
 
