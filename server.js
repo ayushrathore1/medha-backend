@@ -95,9 +95,9 @@ app.use(
 app.use(bodySizeValidator);
 
 // 5. Body parsing with size limits
-// Note: bodySizeValidator enforces 10KB for JSON, 50MB for multipart/form-data
-app.use(express.json({ limit: "50mb" })); // High limit here, validator handles enforcement
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+// Note: bodySizeValidator enforces 70MB limit for all requests
+app.use(express.json({ limit: "70mb" })); // High limit here, validator handles enforcement
+app.use(express.urlencoded({ extended: true, limit: "70mb" }));
 
 // 6. Security middleware stack
 app.use(mongoSanitizeMiddleware); // Prevent NoSQL injection

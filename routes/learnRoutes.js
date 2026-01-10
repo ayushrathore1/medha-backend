@@ -614,10 +614,41 @@ router.patch("/:id/slide/:step", authMiddleware, async (req, res) => {
     }
 
     await content.save();
-    res.json({ success: true, slideData: content.slideData[slideIndex] });
+
+    res.json({
+      success: true,
+      message: "Slide data updated",
+      slideData: content.slideData[slideIndex],
+    });
   } catch (error) {
     console.error("Error updating slide data:", error);
-    res.status(500).json({ success: false, message: "Failed to update slide" });
+    res.status(500).json({ success: false, message: "Failed to update slide data" });
+  }
+});
+
+// POST /api/learn/:id/view - Increment view count
+router.post("/:id/view", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Atomically increment views
+    const content = await LearnContent.findByIdAndUpdate(
+      id,
+      { $inc: { views: 1 } },
+      { new: true, select: 'views' }
+    );
+    
+    if (!content) {
+      return res.status(404).json({ success: false, message: "Content not found" });
+    }
+
+    res.json({
+      success: true,
+      views: content.views
+    });
+  } catch (error) {
+    console.error("Error incrementing view count:", error);
+    res.status(500).json({ success: false, message: "Failed to increment views" });
   }
 });
 

@@ -254,8 +254,8 @@ const bodySizeValidator = (req, res, next) => {
   const contentLength = parseInt(req.get("content-length") || "0", 10);
   const contentType = req.get("content-type") || "";
 
-  // 50MB limit for everything (JSON or file uploads) to allow base64 images
-  const maxSize = 50 * 1024 * 1024;
+  // 70MB limit for everything (JSON or file uploads) to allow base64 images and large PDFs
+  const maxSize = 70 * 1024 * 1024;
 
   if (contentLength > maxSize) {
     console.warn(
