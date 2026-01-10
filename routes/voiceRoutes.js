@@ -136,6 +136,125 @@ router.post(
 );
 
 /**
+ * POST /api/voice/transcribe-with-timestamps
+ * Transcribe audio with segment-level timestamps for slide sync
+ * Returns detailed segments with start/end times
+ */
+router.post(
+  "/transcribe-with-timestamps",
+  optionalAuth,
+  upload.single("audio"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res
+          .status(400)
+          .json({ success: false, message: "No audio file provided" });
+      }
+
+      if (!GROQ_API_KEY) {
+        return res
+          .status(500)
+          .json({ success: false, message: "Groq API key not configured" });
+      }
+
+      console.log(`🎤 Transcribing with timestamps: ${req.file.originalname || "audio"}`);
+      console.log(`   Size: ${(req.file.size / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`   Type: ${req.file.mimetype}`);
+
+      // Determine proper file extension
+      const mimeToExt = {
+        "audio/webm": "webm",
+        "audio/mp4": "mp4",
+        "audio/mpeg": "mp3",
+        "audio/wav": "wav",
+        "audio/ogg": "ogg",
+        "audio/flac": "flac",
+        "audio/m4a": "m4a",
+      };
+      const ext = mimeToExt[req.file.mimetype] || "webm";
+      const fileName = `audio.${ext}`;
+
+      // Use formdata-node for Groq Whisper API
+      const { FormData, Blob } = await import("formdata-node");
+      const formData = new FormData();
+      const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
+      formData.set("file", blob, fileName);
+      formData.set("model", "whisper-large-v3-turbo");
+      formData.set("language", req.body.language || "hi"); // Hindi for Hinglish audio
+      formData.set("response_format", "verbose_json"); // Get segment timestamps
+
+      console.log(`📤 Sending to Whisper API with verbose_json format...`);
+
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/audio/transcriptions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${GROQ_API_KEY}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Whisper API error: ${response.status}`);
+        console.error(`   Response: ${errorText}`);
+        throw new Error(`Transcription failed: HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      console.log(`✅ Transcription complete!`);
+      console.log(`   Duration: ${data.duration?.toFixed(2) || "unknown"} seconds`);
+      console.log(`   Segments: ${data.segments?.length || 0}`);
+      console.log(`   Full text length: ${data.text?.length || 0} chars`);
+
+      // Format segments with clear timestamps
+      const segments = (data.segments || []).map((seg, i) => ({
+        id: i + 1,
+        start: seg.start,
+        end: seg.end,
+        startFormatted: formatSeconds(seg.start),
+        endFormatted: formatSeconds(seg.end),
+        text: seg.text?.trim(),
+        // Word-level timestamps if available
+        words: seg.words?.map(w => ({
+          word: w.word,
+          start: w.start,
+          end: w.end,
+        })),
+      }));
+
+      res.json({
+        success: true,
+        text: data.text,
+        duration: data.duration,
+        durationFormatted: formatSeconds(data.duration || 0),
+        language: data.language || "hi",
+        segmentCount: segments.length,
+        segments,
+      });
+    } catch (error) {
+      console.error("❌ Transcription with timestamps error:", error.message);
+      res.status(500).json({
+        success: false,
+        message: "Failed to transcribe audio with timestamps",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Helper function to format seconds as mm:ss
+function formatSeconds(totalSeconds) {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = Math.floor(totalSeconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
  * POST /api/voice/ask
  * Full voice conversation: Audio in -> AI response -> Text out
  * Frontend handles TTS using Web Speech API

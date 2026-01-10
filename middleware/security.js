@@ -144,13 +144,19 @@ const hppMiddleware = hpp({
 /**
  * Request timeout middleware
  * Prevents long-running requests from blocking the server
+ * Allows longer timeout for file uploads (multipart/form-data)
  */
 const requestTimeout =
   (timeoutMs = 30000) =>
   (req, res, next) => {
-    req.setTimeout(timeoutMs, () => {
+    // Allow 2 minutes for file uploads
+    const contentType = req.get("content-type") || "";
+    const isFileUpload = contentType.includes("multipart/form-data");
+    const actualTimeout = isFileUpload ? 120000 : timeoutMs;
+
+    req.setTimeout(actualTimeout, () => {
       console.error(
-        `[TIMEOUT] Request timeout on ${req.method} ${req.path} from IP: ${req.ip}`
+        `[TIMEOUT] Request timeout on ${req.method} ${req.path} from IP: ${req.ip} (timeout: ${actualTimeout}ms)`
       );
       if (!res.headersSent) {
         res.status(408).json({

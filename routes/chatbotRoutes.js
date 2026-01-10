@@ -3,23 +3,30 @@ const router = express.Router();
 const axios = require("axios");
 const jwt = require("jsonwebtoken");
 const { buildRAGContext } = require("../utils/ragContextBuilder");
-const { needsWebSearch, performWebSearch, formatSearchContext } = require("../utils/webSearch");
+const {
+  needsWebSearch,
+  performWebSearch,
+  formatSearchContext,
+} = require("../utils/webSearch");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "YOUR_GROQ_API_KEY_HERE";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const JWT_SECRET = process.env.JWT_SECRET || "853f32a2825ea94c1586147858f09663a1fcc51d926d7cbfc5440d67fbe80dc30ac1f805ef9bcf8699dffbc31e4505bcb345543c771e0272eabd0a4d011216ec";
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "853f32a2825ea94c1586147858f09663a1fcc51d926d7cbfc5440d67fbe80dc30ac1f805ef9bcf8699dffbc31e4505bcb345543c771e0272eabd0a4d011216ec";
 
 // Initialize Gemini client
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-console.log(`🔧 Gemini API: ${genAI ? '✅ Configured' : '❌ Not configured (GEMINI_API_KEY missing)'}`);
+console.log(
+  `🔧 Gemini API: ${genAI ? "✅ Configured" : "❌ Not configured (GEMINI_API_KEY missing)"}`
+);
 
 // Supported AI models
 const SUPPORTED_MODELS = {
   groq: { name: "Groq (Llama 3)", model: "llama-3.3-70b-versatile" },
-  gemini: { name: "Gemini", model: "gemini-2.0-pro-exp" }
+  gemini: { name: "Gemini", model: "gemini-2.0-pro-exp" },
 };
-
 
 // Detect "who built you" (case-insensitive fuzzy matching)
 function isCreatorQuestion(input) {
@@ -95,9 +102,9 @@ async function callGeminiAPI(systemPrompt, messages, maxTokens = 1000) {
     throw new Error("Gemini API key not configured");
   }
 
-  const model = genAI.getGenerativeModel({ 
+  const model = genAI.getGenerativeModel({
     model: SUPPORTED_MODELS.gemini.model,
-    systemInstruction: systemPrompt
+    systemInstruction: systemPrompt,
   });
 
   // Convert messages to Gemini format (history + current message)
@@ -106,7 +113,7 @@ async function callGeminiAPI(systemPrompt, messages, maxTokens = 1000) {
 
   for (const msg of messages) {
     if (msg.role === "system") continue; // System is handled via systemInstruction
-    
+
     if (msg.role === "user") {
       currentUserMessage = msg.content;
     } else if (msg.role === "assistant") {
@@ -131,56 +138,84 @@ async function callGeminiAPI(systemPrompt, messages, maxTokens = 1000) {
   });
 
   // Send the current user message
-  const result = await chat.sendMessage(currentUserMessage || messages[messages.length - 1].content);
+  const result = await chat.sendMessage(
+    currentUserMessage || messages[messages.length - 1].content
+  );
   return result.response.text();
 }
 
 router.post("/ask", optionalAuth, async (req, res) => {
   try {
-    const { input, contextMessages = [], sessionId, model: selectedModel = "groq" } = req.body;
+    const {
+      input,
+      contextMessages = [],
+      sessionId,
+      model: selectedModel = "groq",
+      animationContext = "",
+    } = req.body;
     const userId = req.userId;
 
-    console.log(`🎯 Model selected: ${selectedModel} | Gemini available: ${!!genAI}`);
+    console.log(
+      `🎯 Model selected: ${selectedModel} | Gemini available: ${!!genAI}`
+    );
+    if (animationContext) {
+      console.log("🎬 Animation context provided - contextual chatbot mode");
+    }
 
     // Import ChatSession model for saving messages
     const ChatSession = require("../models/ChatSession");
 
     // Handle creator questions
     if (isCreatorQuestion(input)) {
-      const answer = "Hey there! 👋 I was developed by students from the Computer Science Engineering department of Arya College of Engineering & IT, Jaipur. If you'd like to get in touch with them, share feedback, or report any issues, just head over to the **Messages** tab and send a message to the admin - you'll get a response soon! Is there anything I can help you with today? 😊";
-      
+      const answer =
+        "Hey there! 👋 I was developed by students from the Computer Science Engineering department of Arya College of Engineering & IT, Jaipur. If you'd like to get in touch with them, share feedback, or report any issues, just head over to the **Messages** tab and send a message to the admin - you'll get a response soon! Is there anything I can help you with today? 😊";
+
       // Save to session if provided
       if (sessionId && userId) {
         await ChatSession.findOneAndUpdate(
           { _id: sessionId, user: userId },
-          { $push: { messages: [{ role: "user", content: input }, { role: "assistant", content: answer }] } }
+          {
+            $push: {
+              messages: [
+                { role: "user", content: input },
+                { role: "assistant", content: answer },
+              ],
+            },
+          }
         );
       }
-      
+
       return res.json({ answer });
     }
 
     // Handle greetings
     if (isGreeting(input)) {
-      const greetingResponse = userId 
+      const greetingResponse = userId
         ? "Hi there! 😊 I'm Medha, your friendly computer science study buddy. Ask me anything about your subjects or concepts, and I'll give you personalized help!"
         : "Hi there! 😊 I'm Medha, your friendly computer science study buddy. Log in to get personalized help based on your study progress!";
-      
+
       // Save to session if provided
       if (sessionId && userId) {
         await ChatSession.findOneAndUpdate(
           { _id: sessionId, user: userId },
-          { $push: { messages: [{ role: "user", content: input }, { role: "assistant", content: greetingResponse }] } }
+          {
+            $push: {
+              messages: [
+                { role: "user", content: input },
+                { role: "assistant", content: greetingResponse },
+              ],
+            },
+          }
         );
       }
-      
+
       return res.json({ answer: greetingResponse });
     }
 
     // Build RAG context from database
     console.log("🧠 Building RAG context for user:", userId || "anonymous");
     const ragContext = await buildRAGContext(userId, input);
-    
+
     if (ragContext.fullContext) {
       console.log("✅ RAG context built successfully");
     }
@@ -211,9 +246,18 @@ router.post("/ask", optionalAuth, async (req, res) => {
     // Build final system prompt with time, RAG context, and web search results
     const now = new Date();
     // Force IST Timezone
-    const timeOptions = { timeZone: 'Asia/Kolkata', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
-    const istDateString = now.toLocaleString('en-IN', timeOptions);
-    
+    const timeOptions = {
+      timeZone: "Asia/Kolkata",
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    };
+    const istDateString = now.toLocaleString("en-IN", timeOptions);
+
     // Parse it back or just use the string directly to avoid server timezone issues
     const timeContext = `
 [CURRENT DATE & TIME (IST)]
@@ -222,7 +266,22 @@ router.post("/ask", optionalAuth, async (req, res) => {
 - NOTE: Strictly use this "Current moment" as the absolute truth for "now", "today", or "current time".
 - If the user asks for the time, report exactly based on the above value.
 `;
-    const enhancedSystemPrompt = baseSystemPrompt + timeContext + (ragContext.fullContext || "") + webSearchContext;
+
+    // Add animation context if provided (for contextual chatbot in animations)
+    const animationCtx = animationContext
+      ? `
+[ANIMATION CONTEXT - PRIORITY]
+${animationContext}
+IMPORTANT: The user is currently viewing this animation. Prioritize answering questions in the context of this animation and the current step they're viewing.
+`
+      : "";
+
+    const enhancedSystemPrompt =
+      baseSystemPrompt +
+      timeContext +
+      animationCtx +
+      (ragContext.fullContext || "") +
+      webSearchContext;
 
     const messages = [
       { role: "system", content: enhancedSystemPrompt },
@@ -239,7 +298,10 @@ router.post("/ask", optionalAuth, async (req, res) => {
       try {
         aiText = await callGeminiAPI(enhancedSystemPrompt, messages, maxTokens);
       } catch (geminiError) {
-        console.error("❌ Gemini API error, falling back to Groq:", geminiError.message);
+        console.error(
+          "❌ Gemini API error, falling back to Groq:",
+          geminiError.message
+        );
         // Fall back to Groq if Gemini fails
         const groqRes = await axios.post(
           "https://api.groq.com/openai/v1/chat/completions",
@@ -280,7 +342,6 @@ router.post("/ask", optionalAuth, async (req, res) => {
       aiText = groqRes.data.choices[0].message.content;
     }
 
-
     // Add friendly follow-up for academic answers
     if (
       !aiText.trim().startsWith("[") &&
@@ -307,21 +368,27 @@ router.post("/ask", optionalAuth, async (req, res) => {
         // Check if this is the first message (for auto-titling)
         const session = await ChatSession.findById(sessionId);
         const updateData = {
-          $push: { 
-            messages: { 
+          $push: {
+            messages: {
               $each: [
-                { role: "user", content: input }, 
-                { role: "assistant", content: aiText }
-              ] 
-            } 
-          }
+                { role: "user", content: input },
+                { role: "assistant", content: aiText },
+              ],
+            },
+          },
         };
-        
+
         // Auto-generate title from first user message
-        if (session && session.title === "New Chat" && session.messages.length === 0) {
-          updateData.$set = { title: input.substring(0, 40) + (input.length > 40 ? "..." : "") };
+        if (
+          session &&
+          session.title === "New Chat" &&
+          session.messages.length === 0
+        ) {
+          updateData.$set = {
+            title: input.substring(0, 40) + (input.length > 40 ? "..." : ""),
+          };
         }
-        
+
         await ChatSession.findOneAndUpdate(
           { _id: sessionId, user: userId },
           updateData
@@ -335,6 +402,7 @@ router.post("/ask", optionalAuth, async (req, res) => {
     res.json({
       answer: aiText,
       hasContext: !!ragContext.fullContext,
+      webSearchUsed: shouldSearch && webSearchContext.length > 0,
     });
   } catch (err) {
     console.error("❌ Chatbot error:", err.response?.data || err.message);
@@ -345,14 +413,14 @@ router.post("/ask", optionalAuth, async (req, res) => {
 // Solve endpoint for exam questions - Multi-Layer AI Pipeline with Caching
 router.post("/solve", optionalAuth, async (req, res) => {
   try {
-    const { 
-      question, 
-      subject, 
-      unit, 
-      marks, 
-      model: selectedModel = "groq", 
+    const {
+      question,
+      subject,
+      unit,
+      marks,
+      model: selectedModel = "groq",
       quickMode = false,
-      forceRegenerate = false  // New option to force regeneration
+      forceRegenerate = false, // New option to force regeneration
     } = req.body;
     const userId = req.userId;
 
@@ -367,18 +435,27 @@ router.post("/solve", optionalAuth, async (req, res) => {
     const questionHash = QuestionSolution.createHash(question, subject, marks);
     const mode = quickMode ? "quick" : "deep";
 
-    console.log(`📝 Solving exam question for subject: ${subject}, unit: ${unit}`);
-    console.log(`🎯 Mode: ${quickMode ? "Quick (Single AI)" : "Deep (Multi-Layer Pipeline)"}`);
+    console.log(
+      `📝 Solving exam question for subject: ${subject}, unit: ${unit}`
+    );
+    console.log(
+      `🎯 Mode: ${quickMode ? "Quick (Single AI)" : "Deep (Multi-Layer Pipeline)"}`
+    );
     console.log(`🔑 Question hash: ${questionHash}`);
 
     // Check for cached solution (unless forceRegenerate is true)
     if (!forceRegenerate) {
       try {
-        const cachedSolution = await QuestionSolution.findOne({ questionHash, mode });
-        
+        const cachedSolution = await QuestionSolution.findOne({
+          questionHash,
+          mode,
+        });
+
         if (cachedSolution) {
-          console.log(`✅ Found cached ${mode} solution (generated ${cachedSolution.createdAt})`);
-          
+          console.log(
+            `✅ Found cached ${mode} solution (generated ${cachedSolution.createdAt})`
+          );
+
           // Update access stats
           await QuestionSolution.updateOne(
             { _id: cachedSolution._id },
@@ -386,7 +463,13 @@ router.post("/solve", optionalAuth, async (req, res) => {
           );
 
           // Safely build metadata object
-          const cachedMetadata = cachedSolution.metadata ? { ...cachedSolution.metadata.toObject ? cachedSolution.metadata.toObject() : cachedSolution.metadata } : {};
+          const cachedMetadata = cachedSolution.metadata
+            ? {
+                ...(cachedSolution.metadata.toObject
+                  ? cachedSolution.metadata.toObject()
+                  : cachedSolution.metadata),
+              }
+            : {};
 
           return res.json({
             success: true,
@@ -397,18 +480,26 @@ router.post("/solve", optionalAuth, async (req, res) => {
             mode: cachedSolution.mode,
             analysis: cachedSolution.analysis || null,
             feedback: cachedSolution.feedback || null,
-            uiTemplate: cachedSolution.uiTemplate || { template: "default", config: { primaryColor: "indigo" } },
+            uiTemplate: cachedSolution.uiTemplate || {
+              template: "default",
+              config: { primaryColor: "indigo" },
+            },
             metadata: {
               ...cachedMetadata,
               cached: true,
               cachedAt: cachedSolution.createdAt,
-              viewCount: (cachedSolution.viewCount || 0) + 1
-            }
+              viewCount: (cachedSolution.viewCount || 0) + 1,
+            },
           });
         }
-        console.log(`📦 No cached solution found for hash ${questionHash}, generating new one...`);
+        console.log(
+          `📦 No cached solution found for hash ${questionHash}, generating new one...`
+        );
       } catch (cacheReadErr) {
-        console.log("⚠️ Error reading cache, proceeding to generate:", cacheReadErr.message);
+        console.log(
+          "⚠️ Error reading cache, proceeding to generate:",
+          cacheReadErr.message
+        );
       }
     } else {
       console.log(`🔄 Force regenerate requested, skipping cache...`);
@@ -417,8 +508,11 @@ router.post("/solve", optionalAuth, async (req, res) => {
     // Quick mode - use single AI call
     if (quickMode) {
       try {
-        const ragContext = await buildRAGContext(userId, `${subject} ${unit} ${question}`);
-        
+        const ragContext = await buildRAGContext(
+          userId,
+          `${subject} ${unit} ${question}`
+        );
+
         const solvePrompt = `You are an expert exam tutor for RTU (Rajasthan Technical University) students.
 
 ## Question Details
@@ -442,12 +536,19 @@ Generate a complete, well-structured, exam-ready answer:`;
 
         let solution = "";
         const startTime = Date.now();
-        
+
         if (selectedModel === "gemini" && genAI) {
           try {
-            solution = await callGeminiAPI("You are an expert exam tutor.", [{ role: "user", content: solvePrompt }], 3000);
+            solution = await callGeminiAPI(
+              "You are an expert exam tutor.",
+              [{ role: "user", content: solvePrompt }],
+              3000
+            );
           } catch (geminiError) {
-            console.log("⚠️ Gemini failed, trying Groq fallback:", geminiError.message);
+            console.log(
+              "⚠️ Gemini failed, trying Groq fallback:",
+              geminiError.message
+            );
             // Fallback to Groq
             const groqRes = await axios.post(
               "https://api.groq.com/openai/v1/chat/completions",
@@ -505,17 +606,26 @@ Generate a complete, well-structured, exam-ready answer:`;
                 mode: "quick",
                 analysis: null,
                 feedback: null,
-                uiTemplate: { template: "default", config: { primaryColor: "indigo" } },
+                uiTemplate: {
+                  template: "default",
+                  config: { primaryColor: "indigo" },
+                },
                 metadata: { totalTime, model: selectedModel, layers: {} },
                 generatedBy: userId || null,
-                lastAccessedAt: new Date()
-              }
+                lastAccessedAt: new Date(),
+              },
             },
             { upsert: true, new: true, setDefaultsOnInsert: true }
           );
-          console.log(`💾 Quick solution saved to cache with hash: ${questionHash}, id: ${savedSolution._id}`);
+          console.log(
+            `💾 Quick solution saved to cache with hash: ${questionHash}, id: ${savedSolution._id}`
+          );
         } catch (cacheErr) {
-          console.error("⚠️ Failed to cache quick solution:", cacheErr.message, cacheErr.stack);
+          console.error(
+            "⚠️ Failed to cache quick solution:",
+            cacheErr.message,
+            cacheErr.stack
+          );
         }
 
         return res.json({
@@ -527,30 +637,42 @@ Generate a complete, well-structured, exam-ready answer:`;
           mode: "quick",
           analysis: null,
           feedback: null,
-          uiTemplate: { template: "default", config: { primaryColor: "indigo" } },
-          metadata: { totalTime, layers: {}, cached: false }
+          uiTemplate: {
+            template: "default",
+            config: { primaryColor: "indigo" },
+          },
+          metadata: { totalTime, layers: {}, cached: false },
         });
-
       } catch (quickModeError) {
         console.error("❌ Quick mode error:", quickModeError.message);
-        return res.status(500).json({ 
-          error: "Failed to generate quick solution. Please try Deep Solve instead.",
-          details: quickModeError.message 
+        return res.status(500).json({
+          error:
+            "Failed to generate quick solution. Please try Deep Solve instead.",
+          details: quickModeError.message,
         });
       }
     }
 
     // Deep mode - use Multi-Layer AI Pipeline
     const { runMultiLayerPipeline } = require("../utils/multiLayerAI");
-    
+
     console.log("🚀 Running Multi-Layer AI Pipeline...");
-    const pipelineResult = await runMultiLayerPipeline(question, subject, unit, marks, selectedModel);
+    const pipelineResult = await runMultiLayerPipeline(
+      question,
+      subject,
+      unit,
+      marks,
+      selectedModel
+    );
 
     if (!pipelineResult.success) {
       // Fallback to quick mode if pipeline fails
       console.log("⚠️ Pipeline failed, falling back to quick mode...");
-      const ragContext = await buildRAGContext(userId, `${subject} ${unit} ${question}`);
-      
+      const ragContext = await buildRAGContext(
+        userId,
+        `${subject} ${unit} ${question}`
+      );
+
       const fallbackPrompt = `
 You are an expert RTU exam tutor. Generate a complete, exam-ready answer.
 
@@ -595,17 +717,30 @@ IMPORTANT: Structure with clear headings, separate paragraphs, and bullet points
               mode: "fallback",
               analysis: null,
               feedback: null,
-              uiTemplate: { template: "default", config: { primaryColor: "indigo" } },
-              metadata: { totalTime: 0, layers: {}, fallbackReason: pipelineResult.error },
+              uiTemplate: {
+                template: "default",
+                config: { primaryColor: "indigo" },
+              },
+              metadata: {
+                totalTime: 0,
+                layers: {},
+                fallbackReason: pipelineResult.error,
+              },
               generatedBy: userId || null,
-              lastAccessedAt: new Date()
-            }
+              lastAccessedAt: new Date(),
+            },
           },
           { upsert: true, new: true, setDefaultsOnInsert: true }
         );
-        console.log(`💾 Fallback solution saved to cache with hash: ${questionHash}, id: ${savedSolution._id}`);
+        console.log(
+          `💾 Fallback solution saved to cache with hash: ${questionHash}, id: ${savedSolution._id}`
+        );
       } catch (cacheErr) {
-        console.error("⚠️ Failed to cache fallback solution:", cacheErr.message, cacheErr.stack);
+        console.error(
+          "⚠️ Failed to cache fallback solution:",
+          cacheErr.message,
+          cacheErr.stack
+        );
       }
 
       return res.json({
@@ -618,11 +753,18 @@ IMPORTANT: Structure with clear headings, separate paragraphs, and bullet points
         analysis: null,
         feedback: null,
         uiTemplate: { template: "default", config: { primaryColor: "indigo" } },
-        metadata: { totalTime: 0, layers: {}, fallbackReason: pipelineResult.error, cached: false }
+        metadata: {
+          totalTime: 0,
+          layers: {},
+          fallbackReason: pipelineResult.error,
+          cached: false,
+        },
       });
     }
 
-    console.log(`✅ Multi-Layer Pipeline complete in ${pipelineResult.metadata.totalTime}ms`);
+    console.log(
+      `✅ Multi-Layer Pipeline complete in ${pipelineResult.metadata.totalTime}ms`
+    );
 
     // Save to cache
     try {
@@ -639,17 +781,26 @@ IMPORTANT: Structure with clear headings, separate paragraphs, and bullet points
             mode: "deep",
             analysis: pipelineResult.analysis || null,
             feedback: pipelineResult.feedback || null,
-            uiTemplate: pipelineResult.uiTemplate || { template: "default", config: { primaryColor: "indigo" } },
+            uiTemplate: pipelineResult.uiTemplate || {
+              template: "default",
+              config: { primaryColor: "indigo" },
+            },
             metadata: pipelineResult.metadata || {},
             generatedBy: userId || null,
-            lastAccessedAt: new Date()
-          }
+            lastAccessedAt: new Date(),
+          },
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
-      console.log(`💾 Deep solution saved to cache with hash: ${questionHash}, id: ${savedSolution._id}`);
+      console.log(
+        `💾 Deep solution saved to cache with hash: ${questionHash}, id: ${savedSolution._id}`
+      );
     } catch (cacheErr) {
-      console.error("⚠️ Failed to cache deep solution:", cacheErr.message, cacheErr.stack);
+      console.error(
+        "⚠️ Failed to cache deep solution:",
+        cacheErr.message,
+        cacheErr.stack
+      );
     }
 
     res.json({
@@ -662,12 +813,13 @@ IMPORTANT: Structure with clear headings, separate paragraphs, and bullet points
       analysis: pipelineResult.analysis,
       feedback: pipelineResult.feedback,
       uiTemplate: pipelineResult.uiTemplate,
-      metadata: { ...pipelineResult.metadata, cached: false }
+      metadata: { ...pipelineResult.metadata, cached: false },
     });
-
   } catch (err) {
     console.error("❌ Solve error:", err.response?.data || err.message);
-    res.status(500).json({ error: err.message || "Failed to generate solution" });
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to generate solution" });
   }
 });
 
@@ -675,7 +827,7 @@ IMPORTANT: Structure with clear headings, separate paragraphs, and bullet points
 router.post("/solve/check-cache", async (req, res) => {
   try {
     const { questions, subject } = req.body;
-    
+
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
       return res.json({ cachedSolutions: {} });
     }
@@ -685,43 +837,63 @@ router.post("/solve/check-cache", async (req, res) => {
 
     // Check cache for each question
     for (const q of questions) {
-      const questionText = q.text?.replace(/<[^>]*>/g, '') || '';
-      const questionHash = QuestionSolution.createHash(questionText, subject, q.marks);
-      
+      const questionText = q.text?.replace(/<[^>]*>/g, "") || "";
+      const questionHash = QuestionSolution.createHash(
+        questionText,
+        subject,
+        q.marks
+      );
+
       // Try to find deep solution first, then quick
-      let cached = await QuestionSolution.findOne({ questionHash, mode: "deep" });
+      let cached = await QuestionSolution.findOne({
+        questionHash,
+        mode: "deep",
+      });
       if (!cached) {
-        cached = await QuestionSolution.findOne({ questionHash, mode: "quick" });
+        cached = await QuestionSolution.findOne({
+          questionHash,
+          mode: "quick",
+        });
       }
       if (!cached) {
-        cached = await QuestionSolution.findOne({ questionHash, mode: "fallback" });
+        cached = await QuestionSolution.findOne({
+          questionHash,
+          mode: "fallback",
+        });
       }
-      
+
       if (cached) {
         // Safely convert metadata
-        const metadata = cached.metadata ? 
-          (cached.metadata.toObject ? cached.metadata.toObject() : cached.metadata) : {};
-        
+        const metadata = cached.metadata
+          ? cached.metadata.toObject
+            ? cached.metadata.toObject()
+            : cached.metadata
+          : {};
+
         cachedSolutions[q.qCode] = {
           solution: cached.solution,
           analysis: cached.analysis || null,
           feedback: cached.feedback || null,
-          uiTemplate: cached.uiTemplate || { template: "default", config: { primaryColor: "indigo" } },
+          uiTemplate: cached.uiTemplate || {
+            template: "default",
+            config: { primaryColor: "indigo" },
+          },
           metadata: {
             ...metadata,
             cached: true,
-            cachedAt: cached.createdAt
+            cachedAt: cached.createdAt,
           },
           mode: cached.mode,
           cached: true,
-          isError: false
+          isError: false,
         };
       }
     }
 
-    console.log(`📦 Cache check: Found ${Object.keys(cachedSolutions).length}/${questions.length} cached solutions`);
+    console.log(
+      `📦 Cache check: Found ${Object.keys(cachedSolutions).length}/${questions.length} cached solutions`
+    );
     res.json({ cachedSolutions });
-    
   } catch (err) {
     console.error("❌ Check cache error:", err.message);
     res.json({ cachedSolutions: {} });

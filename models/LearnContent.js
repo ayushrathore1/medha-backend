@@ -130,6 +130,28 @@ const LearnContentSchema = new mongoose.Schema({
     type: String // ImageKit file ID for deletion
   },
   
+  // Audio transcript for auto-sync (generated via Whisper API)
+  audioTranscript: {
+    segments: [{
+      id: { type: Number },           // Segment index
+      start: { type: Number },        // Start time in seconds
+      end: { type: Number },          // End time in seconds
+      text: { type: String },         // Transcript text
+      slideNumber: { type: Number }   // Mapped slide number (auto or manual)
+    }],
+    language: { type: String, default: 'hi' },
+    duration: { type: Number },       // Total audio duration in seconds
+    transcribedAt: { type: Date },
+    autoSyncEnabled: { type: Boolean, default: true }
+  },
+  
+  // Manual slide timings (recorded by admin) - Prioritized over auto-sync if present
+  manualSlideTimings: {
+    type: Map,
+    of: Number, // slideNumber -> startTime (seconds)
+    default: {}
+  },
+  
   // Engagement metrics
   likes: [{ 
     type: mongoose.Schema.Types.ObjectId, 
