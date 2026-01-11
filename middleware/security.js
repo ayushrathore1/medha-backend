@@ -79,6 +79,13 @@ const sanitizeObject = (obj, parentKey = "") => {
         // AI assistant conversation links
         "chatgptLink",
         "claudeLink",
+        // Practice coding fields - code should not be escaped
+        "code",
+        "starterCode",
+        "solutionCode",
+        "lastSubmittedCode",
+        "stdin",
+        "input",
       ];
       if (allowedFields.includes(parentKey)) {
         return obj;
@@ -199,6 +206,7 @@ const suspiciousActivityDetector = (req, res, next) => {
     "/api/admin/generate-email",
     "/api/chatbot",
     "/api/chat",
+    "/api/practice", // Practice routes - C/C++ code contains #include, //, etc.
     "/api/rtu/subjects", // RTU routes may have question codes with parentheses like Q3 (Part A)
     "/api/rtu/imagekit-auth",
     "/api/learn/admin", // Learn admin routes for ImageKit uploads

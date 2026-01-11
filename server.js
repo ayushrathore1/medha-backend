@@ -38,6 +38,7 @@ const messageRoutes = require("./routes/messageRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const voiceRoutes = require("./routes/voiceRoutes");
+const practiceRoutes = require("./routes/practiceRoutes");
 // Charcha routes are conditionally loaded based on feature flag
 const CHARCHA_ENABLED = process.env.ENABLE_CHARCHA === "true";
 const charchaRoutes = CHARCHA_ENABLED
@@ -173,6 +174,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/rtu", rtuRoutes);
 app.use("/api/learn", learnRoutes);
+app.use("/api/practice", practiceRoutes);
 
 // AI/Resource-intensive routes with AI rate limiting
 app.use("/api/chatbot", aiLimiter, chatbotRoutes);

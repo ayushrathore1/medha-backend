@@ -42,10 +42,20 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
     const isPDF = file.mimetype === "application/pdf";
+    // Sanitize filename: remove extension, replace special chars, trim whitespace
+    const baseName = file.originalname
+      .replace(/\.[^/.]+$/, "") // Remove extension
+      .replace(/[^a-zA-Z0-9_-]/g, "_") // Replace special chars with underscore
+      .replace(/_+/g, "_") // Collapse multiple underscores
+      .replace(/^_|_$/g, "") // Remove leading/trailing underscores
+      .trim(); // Remove any whitespace
+    
+    const safePublicId = `${Date.now()}-${baseName || "file"}`;
+    
     return {
       folder: "uploads",
       resource_type: isPDF ? "raw" : "auto",
-      public_id: `${Date.now()}-${file.originalname.replace(/\.[^/.]+$/, "")}`,
+      public_id: safePublicId,
       // Make PDFs publicly accessible
       access_mode: "public",
       // For PDFs, use delivery type that allows direct access
