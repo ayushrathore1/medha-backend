@@ -929,11 +929,20 @@ router.put(
         audioDuration 
       } = req.body;
 
-      const content = await LearnContent.findOne({ animationId });
+      // Find or create animation document
+      let content = await LearnContent.findOne({ animationId });
       if (!content) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Animation not found" });
+        // Auto-create animation document if it doesn't exist
+        content = new LearnContent({
+          title: animationId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          type: 'animation',
+          animationId: animationId,
+          subject: 'Object Oriented Programming',
+          university: 'RTU',
+          partAudios: [],
+          slideData: [],
+        });
+        console.log(`Created new animation document for: ${animationId}`);
       }
 
       // Initialize partAudios if doesn't exist
