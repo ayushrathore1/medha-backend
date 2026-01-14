@@ -32,24 +32,87 @@ exports.getNotes = async (req, res) => {
 exports.getPublicNotes = async (req, res) => {
   try {
     const { search, subject } = req.query;
-    const filter = { isPublic: true };
     
-    if (subject) {
-      filter.subject = subject;
-    }
+    // Use aggregation for searching by owner name
+    const pipeline = [
+      { $match: { isPublic: true } },
+      // Lookup owner details
+      {
+        $lookup: {
+          from: "users",
+          localField: "owner",
+          foreignField: "_id",
+          as: "ownerData"
+        }
+      },
+      { $unwind: { path: "$ownerData", preserveNullAndEmptyArrays: true } },
+      // Lookup subject details
+      {
+        $lookup: {
+          from: "subjects",
+          localField: "subject",
+          foreignField: "_id",
+          as: "subjectData"
+        }
+      },
+      { $unwind: { path: "$subjectData", preserveNullAndEmptyArrays: true } },
+    ];
     
+    // Add search filter if provided
     if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { content: { $regex: search, $options: "i" } },
-      ];
+      pipeline.push({
+        $match: {
+          $or: [
+            { title: { $regex: search, $options: "i" } },
+            { content: { $regex: search, $options: "i" } },
+            { subjectTag: { $regex: search, $options: "i" } },
+            { "ownerData.name": { $regex: search, $options: "i" } },
+            { "ownerData.email": { $regex: search, $options: "i" } },
+          ]
+        }
+      });
     }
-
-    const notes = await Note.find(filter)
-      .populate("owner", "name email")
-      .populate("subject", "name")
-      .sort({ createdAt: -1 })
-      .limit(50);
+    
+    // Add subject filter if provided
+    if (subject) {
+      const mongoose = require("mongoose");
+      pipeline.push({
+        $match: { subject: new mongoose.Types.ObjectId(subject) }
+      });
+    }
+    
+    // Project the final shape
+    pipeline.push(
+      { $sort: { createdAt: -1 } },
+      { $limit: 50 },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          content: 1,
+          subjectTag: 1,
+          fileUrl: 1,
+          fileType: 1,
+          originalName: 1,
+          extractedText: 1,
+          likes: 1,
+          isPublic: 1,
+          createdAt: 1,
+          owner: {
+            _id: "$ownerData._id",
+            name: "$ownerData.name",
+            email: "$ownerData.email",
+            avatar: "$ownerData.avatar"
+          },
+          subject: {
+            _id: "$subjectData._id",
+            name: "$subjectData.name"
+          }
+        }
+      }
+    );
+    
+    const notes = await Note.aggregate(pipeline);
     
     res.json({ notes });
   } catch (err) {
@@ -82,15 +145,16 @@ exports.toggleVisibility = async (req, res) => {
 // Upload a note with file (PDF or Image) via Cloudinary
 exports.uploadNote = async (req, res) => {
   try {
-    const { title, subject } = req.body;
+    const { title, subject, subjectTag, isPublic } = req.body;
     const owner = req.user._id;
     
     if (!title || !title.trim()) {
       return res.status(400).json({ error: "Title is required." });
     }
     
-    if (!subject) {
-      return res.status(400).json({ error: "Subject is required." });
+    // Support both old subject ObjectId and new subjectTag
+    if (!subject && !subjectTag) {
+      return res.status(400).json({ error: "Subject or subject tag is required." });
     }
 
     const file = req.file;
@@ -98,22 +162,29 @@ exports.uploadNote = async (req, res) => {
       return res.status(400).json({ error: "No file uploaded." });
     }
 
-    const note = new Note({
+    const noteData = {
       title: title.trim(),
-      subject,
       owner,
       fileUrl: file.path,
       fileType: file.mimetype,
       originalName: file.originalname,
       content: req.body.content || "",
       extractedText: req.body.content || "",
-      isPublic: false, // Private by default
-    });
+      isPublic: isPublic === 'true' || isPublic === true, // Support string or boolean
+    };
 
+    // Set either subject ref or subjectTag
+    if (subjectTag) {
+      noteData.subjectTag = subjectTag.trim();
+    } else if (subject) {
+      noteData.subject = subject;
+    }
+
+    const note = new Note(noteData);
     await note.save();
     
     // Populate owner info before returning
-    await note.populate("owner", "name email");
+    await note.populate("owner", "name email avatar");
     
     res.status(201).json({ message: "Note uploaded successfully!", note });
   } catch (err) {
@@ -124,31 +195,41 @@ exports.uploadNote = async (req, res) => {
 // Create a note from pasted text (no file)
 exports.createTextNote = async (req, res) => {
   try {
-    const { title, content, subject } = req.body;
+    const { title, content, subject, subjectTag } = req.body;
     const owner = req.user._id;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ error: "Title is required." });
     }
 
-    if (!content || !subject) {
-      return res
-        .status(400)
-        .json({ error: "Content and subject are required." });
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: "Content is required." });
     }
 
-    const note = new Note({
+    // Support both old subject ObjectId and new subjectTag
+    if (!subject && !subjectTag) {
+      return res.status(400).json({ error: "Subject or subject tag is required." });
+    }
+
+    const noteData = {
       title: title.trim(),
-      content,
-      subject,
+      content: content.trim(),
       owner,
       fileUrl: null,
       fileType: null,
       originalName: null,
-      extractedText: content,
+      extractedText: content.trim(),
       isPublic: false, // Private by default
-    });
+    };
 
+    // Set either subject ref or subjectTag
+    if (subjectTag) {
+      noteData.subjectTag = subjectTag.trim();
+    } else if (subject) {
+      noteData.subject = subject;
+    }
+
+    const note = new Note(noteData);
     await note.save();
     await note.populate("owner", "name email");
     
@@ -162,7 +243,7 @@ exports.createTextNote = async (req, res) => {
 exports.updateNote = async (req, res) => {
   try {
     const { noteId } = req.params;
-    const { title, content, subject, isPublic } = req.body;
+    const { title, content, subject, subjectTag, isPublic } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ error: "Title is required." });
@@ -172,17 +253,25 @@ exports.updateNote = async (req, res) => {
       return res.status(400).json({ error: "Content is required." });
     }
 
-    if (!subject) {
-      return res.status(400).json({ error: "Subject is required." });
+    // Support both old subject ObjectId and new subjectTag
+    if (!subject && !subjectTag) {
+      return res.status(400).json({ error: "Subject or subject tag is required." });
     }
 
     const updateData = {
       title: title.trim(),
       content: content.trim(),
-      subject,
       extractedText: content.trim(),
       updatedAt: new Date(),
     };
+
+    // Set either subject ref or subjectTag
+    if (subjectTag) {
+      updateData.subjectTag = subjectTag.trim();
+      updateData.subject = null; // Clear old subject ref if using tag
+    } else if (subject) {
+      updateData.subject = subject;
+    }
     
     // Only update isPublic if explicitly provided
     if (typeof isPublic === 'boolean') {

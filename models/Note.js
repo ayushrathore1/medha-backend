@@ -14,7 +14,12 @@ const NoteSchema = new mongoose.Schema(
     subject: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Subject",
-      required: true,
+      required: false, // Made optional for new tag-based notes
+    },
+    subjectTag: {
+      type: String,
+      trim: true,
+      default: null, // New field for subject tags
     },
     owner: {
       type: mongoose.Schema.Types.ObjectId,

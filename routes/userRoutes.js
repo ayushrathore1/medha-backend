@@ -52,6 +52,175 @@ router.get("/activity-history", auth, async (req, res, next) => {
   }
 });
 
+// @route   GET /api/users/profile/:userId
+// @desc    Get public profile data (info + stats)
+// @access  Protected (requires auth to check follow status)
+const Note = require("../models/Note");
+const Follow = require("../models/Follow");
+
+// @route   GET /api/users/search
+// @desc    Search users by name/email for suggestions
+// @access  Public (so guests can search too)
+router.get("/search", async (req, res, next) => {
+  try {
+    const { query } = req.query;
+    if (!query) return res.json({ users: [] });
+
+    // Assuming regular users, not just public ones? 
+    // Profile visibility is not defined yet, but profiles seem public.
+    const users = await User.find({
+      $or: [
+        { name: { $regex: query, $options: "i" } },
+        { email: { $regex: query, $options: "i" } }
+      ]
+    }).select("name email avatar avatarIndex university branch").limit(5);
+
+    res.json({ users });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/profile/:userId", auth, async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user.userId;
+
+    const user = await User.findById(userId).select("name email avatar avatarIndex university branch gender karma rank role customFlair createdAt");
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Parallel data fetching for performance
+    const [notesCount, followersCount, followingCount, isFollowing] = await Promise.all([
+      Note.countDocuments({ owner: userId, isPublic: true }),
+      Follow.countDocuments({ following: userId }),
+      Follow.countDocuments({ follower: userId }),
+      Follow.findOne({ follower: currentUserId, following: userId })
+    ]);
+
+    res.json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        // Only show email domain/mask for privacy unless admin/same user? 
+        // For now, let's just show it as is or maybe omitted if privacy is key.
+        // User requested showing uploader, so maybe just name is enough.
+        // Let's keep email for now as per Profile.jsx logic
+        email: user.email, 
+        avatar: user.avatar, // You might need getAvatarByIndex logic on backend or frontend
+        avatarIndex: user.avatarIndex,
+        university: user.university,
+        branch: user.branch,
+        gender: user.gender,
+        karma: user.karma,
+        rank: user.rank,
+        role: user.role,
+        customFlair: user.customFlair,
+        createdAt: user.createdAt
+      },
+      stats: {
+        notesShared: notesCount,
+        followers: followersCount,
+        following: followingCount
+      },
+      isFollowing: !!isFollowing
+    });
+
+  } catch (err) {
+    next(err);
+  }
+});
+
+// @route   POST /api/users/:userId/follow
+// @desc    Follow a user
+// @access  Private
+router.post("/:userId/follow", auth, async (req, res, next) => {
+  try {
+    const targetUserId = req.params.userId;
+    const followerId = req.user.userId;
+
+    // Can't follow yourself
+    if (targetUserId === followerId.toString()) {
+      return res.status(400).json({ message: "Cannot follow yourself" });
+    }
+
+    // Check if target user exists
+    const targetUser = await User.findById(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if already following
+    const existingFollow = await Follow.findOne({
+      follower: followerId,
+      following: targetUserId,
+    });
+
+    if (existingFollow) {
+      return res.status(400).json({ message: "Already following this user" });
+    }
+
+    // Create follow relationship
+    await Follow.create({
+      follower: followerId,
+      following: targetUserId,
+    });
+
+    // Update follower/following counts
+    await User.updateOne({ _id: followerId }, { $inc: { followingCount: 1 } });
+    await User.updateOne({ _id: targetUserId }, { $inc: { followerCount: 1 } });
+
+    const newFollowerCount = await Follow.countDocuments({ following: targetUserId });
+
+    res.json({
+      message: "Successfully followed user",
+      followerCount: newFollowerCount,
+      isFollowing: true,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// @route   DELETE /api/users/:userId/follow
+// @desc    Unfollow a user
+// @access  Private
+router.delete("/:userId/follow", auth, async (req, res, next) => {
+  try {
+    const targetUserId = req.params.userId;
+    const followerId = req.user.userId;
+
+    // Check if following
+    const existingFollow = await Follow.findOne({
+      follower: followerId,
+      following: targetUserId,
+    });
+
+    if (!existingFollow) {
+      return res.status(400).json({ message: "Not following this user" });
+    }
+
+    // Remove follow relationship
+    await Follow.deleteOne({ _id: existingFollow._id });
+
+    // Update follower/following counts
+    await User.updateOne({ _id: followerId }, { $inc: { followingCount: -1 } });
+    await User.updateOne({ _id: targetUserId }, { $inc: { followerCount: -1 } });
+
+    const newFollowerCount = await Follow.countDocuments({ following: targetUserId });
+
+    res.json({
+      message: "Successfully unfollowed user",
+      followerCount: newFollowerCount,
+      isFollowing: false,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // @route   PATCH /api/users/me
 // @desc    Update profile info (name, college, year, branch, avatar)
 // @access  Private
