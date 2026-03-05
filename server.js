@@ -39,6 +39,7 @@ const chatRoutes = require("./routes/chatRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const voiceRoutes = require("./routes/voiceRoutes");
 const practiceRoutes = require("./routes/practiceRoutes");
+const recommendationRoutes = require("./routes/recommendationRoutes");
 // Charcha routes are conditionally loaded based on feature flag
 const CHARCHA_ENABLED = process.env.ENABLE_CHARCHA === "true";
 const charchaRoutes = CHARCHA_ENABLED
@@ -181,6 +182,7 @@ app.use("/api/chatbot", aiLimiter, chatbotRoutes);
 app.use("/api/voice", aiLimiter, voiceRoutes);
 app.use("/api/chat", chatHistoryRoutes);
 app.use("/api/ocr", aiLimiter, ocrRoutes);
+app.use("/api/recommendations", aiLimiter, recommendationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
