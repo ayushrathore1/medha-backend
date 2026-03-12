@@ -1,3 +1,4 @@
+console.log("🔍 [STARTUP] app.js loaded (NOT server.js!), Node.js version:", process.version);
 require("dotenv").config();
 const cors = require("cors");
 const express = require("express");

@@ -1,3 +1,5 @@
+console.log("🔍 [STARTUP] server.js loaded, Node.js version:", process.version);
+try {
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
@@ -7,12 +9,10 @@ const compression = require("compression");
 // ============================================
 // STARTUP DIAGNOSTICS
 // ============================================
-console.log("🔍 [STARTUP] Node.js version:", process.version);
 console.log("🔍 [STARTUP] Environment:", process.env.NODE_ENV || "not set");
 console.log("🔍 [STARTUP] PORT:", process.env.PORT || "not set (will use 5000)");
 console.log("🔍 [STARTUP] MONGO_URI:", process.env.MONGO_URI ? "✅ set" : "❌ NOT SET");
 console.log("🔍 [STARTUP] JWT_SECRET:", process.env.JWT_SECRET ? "✅ set" : "❌ NOT SET");
-console.log("🔍 [STARTUP] GROQ_API_KEY:", process.env.GROQ_API_KEY ? "✅ set" : "❌ NOT SET");
 
 // Security middleware imports
 const {
@@ -321,3 +321,7 @@ mongoose
   });
 
 module.exports = app;
+} catch (err) {
+  console.error("💥 [STARTUP CRASH]", err.message);
+  console.error("💥 [STARTUP CRASH] Stack:", err.stack);
+}
