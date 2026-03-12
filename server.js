@@ -1,5 +1,5 @@
 console.log("🔍 [STARTUP] server.js loaded, Node.js version:", process.version);
-try {
+
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
@@ -272,10 +272,8 @@ const gracefulShutdown = async (signal) => {
   try {
     await mongoose.connection.close();
     console.log("✅ MongoDB connection closed");
-    process.exit(0);
   } catch (err) {
     console.error("❌ Error during shutdown:", err);
-    process.exit(1);
   }
 };
 
@@ -283,17 +281,32 @@ const gracefulShutdown = async (signal) => {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-// Handle uncaught exceptions
+// Handle uncaught exceptions - log but don't crash
 process.on("uncaughtException", (err) => {
   console.error("[UNCAUGHT EXCEPTION]", err);
-  gracefulShutdown("UNCAUGHT EXCEPTION");
 });
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("[UNHANDLED REJECTION]", reason);
 });
 
-// Connect to MongoDB and start the server
+// ============================================
+// START SERVER FIRST, THEN CONNECT TO MONGODB
+// (Ensures server is responsive even during DB connection)
+// ============================================
+
+// Start listening immediately
+server = app.listen(PORT, () => {
+  console.log(`🚀 MEDHA backend running at http://localhost:${PORT}`);
+  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+});
+
+// Set server timeout
+server.timeout = 30000;
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+
+// Then connect to MongoDB (non-blocking)
 mongoose
   .connect(MONGO_URI, mongoOptions)
   .then(() => {
@@ -304,24 +317,12 @@ mongoose
     console.log("🔒 Security middleware: Enabled");
     console.log("⚡ Rate limiting: Enabled");
     console.log("🗜️  Compression: Enabled");
-
-    server = app.listen(PORT, () => {
-      console.log(`🚀 MEDHA backend running at http://localhost:${PORT}`);
-      console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-    });
-
-    // Set server timeout
-    server.timeout = 30000;
-    server.keepAliveTimeout = 65000;
-    server.headersTimeout = 66000;
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection error:", err);
-    process.exit(1);
+    console.error("❌ MongoDB connection error:", err.message);
+    console.error("⚠️ Server running WITHOUT database connection");
+    // DO NOT call process.exit - keep server alive
   });
 
+// Export app for Hostinger's process manager
 module.exports = app;
-} catch (err) {
-  console.error("💥 [STARTUP CRASH]", err.message);
-  console.error("💥 [STARTUP CRASH] Stack:", err.stack);
-}
