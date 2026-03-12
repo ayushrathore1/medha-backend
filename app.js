@@ -25,6 +25,8 @@ const allowedOrigins = [
   "https://medha-revision.vercel.app",
   "https://medha-revision.pages.dev",
   "https://medha-revision.pages.dev/",
+  "https://medha.codelearnn.com",
+  "http://medha.codelearnn.com",
   "http://localhost:3000",
   "http://localhost:5000",
 ];

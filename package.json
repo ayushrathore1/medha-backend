@@ -12,12 +12,9 @@
     "test:coverage": "cross-env NODE_ENV=test jest --coverage --detectOpenHandles --forceExit"
   },
   "dependencies": {
-    "@clerk/backend": "^2.29.0",
     "@google/generative-ai": "^0.24.1",
-    "@heroicons/react": "^2.2.0",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
-    "classnames": "^2.5.1",
     "cloudinary": "^2.8.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -39,8 +36,6 @@
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^7.0.10",
     "pdf2pic": "^3.2.0",
-    "react-hook-form": "^7.62.0",
-    "react-router-dom": "^7.9.1",
     "resend": "^6.3.0",
     "tesseract.js": "^6.0.1"
   },

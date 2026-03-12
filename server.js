@@ -4,6 +4,16 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const compression = require("compression");
 
+// ============================================
+// STARTUP DIAGNOSTICS
+// ============================================
+console.log("🔍 [STARTUP] Node.js version:", process.version);
+console.log("🔍 [STARTUP] Environment:", process.env.NODE_ENV || "not set");
+console.log("🔍 [STARTUP] PORT:", process.env.PORT || "not set (will use 5000)");
+console.log("🔍 [STARTUP] MONGO_URI:", process.env.MONGO_URI ? "✅ set" : "❌ NOT SET");
+console.log("🔍 [STARTUP] JWT_SECRET:", process.env.JWT_SECRET ? "✅ set" : "❌ NOT SET");
+console.log("🔍 [STARTUP] GROQ_API_KEY:", process.env.GROQ_API_KEY ? "✅ set" : "❌ NOT SET");
+
 // Security middleware imports
 const {
   generalLimiter,
@@ -47,6 +57,8 @@ const charchaRoutes = CHARCHA_ENABLED
   : null;
 const { router: authExtraRoutes } = require("./routes/authExtraRoutes");
 
+console.log("🔍 [STARTUP] All modules loaded successfully");
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/medha";
@@ -68,6 +80,8 @@ app.use(compression());
 const allowedOrigins = [
   "https://medha-revision.vercel.app",
   "https://medha-revision.pages.dev",
+  "https://medha.codelearnn.com",
+  "http://medha.codelearnn.com",
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:3002",

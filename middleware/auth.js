@@ -1,15 +1,21 @@
 const jwt = require("jsonwebtoken");
 
 // JWT secret MUST be set in environment variables for security
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-  console.error("❌ CRITICAL: JWT_SECRET environment variable is not set!");
-  console.error("Please set JWT_SECRET in your .env file");
-  process.exit(1);
-}
+// Note: Check at request time instead of module load to prevent
+// the server from crashing on startup (important for Hostinger deployment)
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error("❌ CRITICAL: JWT_SECRET environment variable is not set!");
+  }
+  return secret;
+};
 
 const auth = (req, res, next) => {
+  const JWT_SECRET = getJwtSecret();
+  if (!JWT_SECRET) {
+    return res.status(500).json({ message: "Server configuration error: JWT_SECRET not set" });
+  }
   // Get token from Authorization header: "Bearer <token>"
   const authHeader = req.header("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
