@@ -1,3 +1,16 @@
+// ============================================
+// GRACEFUL ERROR LOGGING (must be first!)
+// ============================================
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+  process.exit(1);
+});
+
 console.log("🔍 [STARTUP] server.js loaded, Node.js version:", process.version);
 
 require("dotenv").config();
@@ -10,7 +23,7 @@ const compression = require("compression");
 // STARTUP DIAGNOSTICS
 // ============================================
 console.log("🔍 [STARTUP] Environment:", process.env.NODE_ENV || "not set");
-console.log("🔍 [STARTUP] PORT:", process.env.PORT || "not set (will use 5000)");
+console.log("🔍 [STARTUP] PORT:", process.env.PORT || "not set (will use 3000)");
 console.log("🔍 [STARTUP] MONGO_URI:", process.env.MONGO_URI ? "✅ set" : "❌ NOT SET");
 console.log("🔍 [STARTUP] JWT_SECRET:", process.env.JWT_SECRET ? "✅ set" : "❌ NOT SET");
 
@@ -60,7 +73,7 @@ const { router: authExtraRoutes } = require("./routes/authExtraRoutes");
 console.log("🔍 [STARTUP] All modules loaded successfully");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/medha";
 
 // Trust proxy for accurate rate limiting behind reverse proxies (Vercel, Render, etc.)
@@ -281,23 +294,14 @@ const gracefulShutdown = async (signal) => {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-// Handle uncaught exceptions - log but don't crash
-process.on("uncaughtException", (err) => {
-  console.error("[UNCAUGHT EXCEPTION]", err);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("[UNHANDLED REJECTION]", reason);
-});
-
 // ============================================
 // START SERVER FIRST, THEN CONNECT TO MONGODB
 // (Ensures server is responsive even during DB connection)
 // ============================================
 
-// Start listening immediately
-server = app.listen(PORT, () => {
-  console.log(`🚀 MEDHA backend running at http://localhost:${PORT}`);
+// Bind to 0.0.0.0 — required for Hostinger Passenger
+server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 MEDHA backend running on port ${PORT}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
 });
 
