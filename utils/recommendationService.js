@@ -2,6 +2,8 @@ const axios = require("axios");
 const Groq = require("groq-sdk");
 const ApprovedChannel = require("../models/ApprovedChannel");
 const Syllabus = require("../models/Syllabus");
+const UniversitySyllabus = require("../models/UniversitySyllabus");
+const User = require("../models/User");
 
 // ─── API Keys ───────────────────────────────────────────────
 const YOUTUBE_DATA_API_KEY = process.env.YOUTUBE_DATA_API_KEY;
@@ -259,14 +261,73 @@ async function searchGfg(query) {
 }
 
 // ─── Get syllabus context for AI scoring ────────────────────
-async function getSyllabusContext(subjectName) {
-  if (!subjectName) return null;
+async function getSyllabusContext(subjectName, userId) {
+  // Priority: Shared university syllabus > Global syllabus
+  if (userId) {
+    try {
+      const user = await User.findById(userId).lean();
+      if (user?.university && user?.branch) {
+        const uniSyllabi = await UniversitySyllabus.find({
+          university: { $regex: new RegExp(`^${user.university}$`, "i") },
+          branch: { $regex: new RegExp(`^${user.branch}$`, "i") },
+          status: "ready",
+        }).lean();
 
+        if (uniSyllabi.length > 0) {
+          // Collect all subjects across semesters
+          const allSubjects = uniSyllabi.flatMap((s) =>
+            (s.subjects || []).map((subj) => ({ ...subj, semester: s.semester }))
+          );
+
+          if (subjectName) {
+            // Find matching subject
+            const matched = allSubjects.find(
+              (s) => s.name.toLowerCase().includes(subjectName.toLowerCase())
+            );
+            if (matched) {
+              return {
+                source: "university",
+                subjectName: matched.name,
+                units: matched.units || [],
+                allSubjects: allSubjects.map((s) => s.name),
+              };
+            }
+          }
+
+          // No specific match — return all subjects' units
+          return {
+            source: "university",
+            subjectName: null,
+            units: allSubjects.flatMap((s) =>
+              (s.units || []).map((u) => ({
+                ...u._doc || u,
+                subjectName: s.name,
+              }))
+            ),
+            allSubjects: allSubjects.map((s) => s.name),
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("[Lectures] Failed to load university syllabus:", err.message);
+    }
+  }
+
+  // Fallback to global syllabus
+  if (!subjectName) return null;
   try {
     const syllabus = await Syllabus.findOne({
       subjectName: { $regex: new RegExp(subjectName, "i") },
     }).lean();
-    return syllabus;
+    if (syllabus) {
+      return {
+        source: "global",
+        subjectName: syllabus.subjectName,
+        units: syllabus.units || [],
+        allSubjects: [syllabus.subjectName],
+      };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -299,12 +360,23 @@ async function scoreWithAI(query, youtubeResults, gfgResults, syllabusContext) {
   }
 
   // Build syllabus text
-  let syllabusText = "No specific syllabus available.";
+  let syllabusText = "No specific syllabus available. Score based on educational quality and topic relevance only.";
+  let isUserSyllabus = false;
+
   if (syllabusContext && syllabusContext.units) {
-    syllabusText = syllabusContext.units
+    isUserSyllabus = syllabusContext.source === "university";
+    const contextLabel = isUserSyllabus ? "STUDENT'S UNIVERSITY SYLLABUS (STRICT REFERENCE)" : "REFERENCE SYLLABUS";
+
+    syllabusText = `--- ${contextLabel} ---\n`;
+    if (syllabusContext.allSubjects) {
+      syllabusText += `Subjects: ${syllabusContext.allSubjects.join(", ")}\n\n`;
+    }
+    syllabusText += syllabusContext.units
       .map(
-        (unit) =>
-          `Unit ${unit.unitNumber}: ${unit.title}\nTopics: ${unit.topics.join(", ")}`
+        (unit) => {
+          const prefix = unit.subjectName ? `[${unit.subjectName}] ` : "";
+          return `${prefix}Unit ${unit.unitNumber}: ${unit.title}\nTopics: ${(unit.topics || []).join(", ")}`;
+        }
       )
       .join("\n\n");
   }
@@ -319,6 +391,10 @@ async function scoreWithAI(query, youtubeResults, gfgResults, syllabusContext) {
   const gfgList = gfgResults
     .map((a, i) => `GFG_${i}: "${a.title}" - ${a.snippet}`)
     .join("\n");
+
+  const strictnessNote = isUserSyllabus
+    ? `\n\nIMPORTANT: The student has uploaded their ACTUAL university syllabus. Use it as the STRICT reference. A video MUST cover topics that appear in the syllabus to score above 70. Be very precise — the accuracy of these scores is critical for the student's trust.`
+    : "";
 
   const prompt = `You are an academic content evaluator for engineering students.
 
@@ -335,12 +411,12 @@ ${gfgList || "None"}
 
 For each result assign a relevance score 0-100, identify matched syllabus topics, write a 1-sentence explanation, and mark if recommended. Also pick the overall topPick and provide a studyTip.
 
-Scoring guide:
-  90-100: Exact topic match
-  70-89: Covers topic well
-  50-69: Partially relevant
-  30-49: Loosely related
-  0-29: Not relevant
+Scoring guide (STRICT when syllabus is provided):
+  90-100: Video title/description DIRECTLY covers a specific syllabus topic by name
+  70-89: Covers the topic area well, matches syllabus unit themes
+  50-69: Related subject but different specific topic from syllabus
+  30-49: Same broad field but not in syllabus
+  0-29: Not relevant to syllabus at all${strictnessNote}
 
 RESPOND IN THIS EXACT JSON FORMAT:
 {
@@ -433,9 +509,9 @@ RESPOND IN THIS EXACT JSON FORMAT:
 }
 
 // ─── Main Orchestrator ──────────────────────────────────────
-async function getRecommendations(topic, subject, unit) {
+async function getRecommendations(topic, subject, unit, userId) {
   console.log(
-    `[Lectures] Searching: "${topic}" | subject: "${subject || "any"}" | unit: "${unit || "any"}"`
+    `[Lectures] Searching: "${topic}" | subject: "${subject || "any"}" | unit: "${unit || "any"}" | userId: ${userId || "none"}`
   );
 
   // Check cache
@@ -477,8 +553,8 @@ async function getRecommendations(topic, subject, unit) {
     });
   }
 
-  // 4. Get syllabus context
-  const syllabusContext = await getSyllabusContext(subject);
+  // 4. Get syllabus context (user's first, then global)
+  const syllabusContext = await getSyllabusContext(subject, userId);
 
   // 5. AI Score everything against syllabus
   const scored = await scoreWithAI(topic, videoDetails, gfgResults, syllabusContext);
