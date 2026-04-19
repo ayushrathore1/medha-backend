@@ -31,7 +31,7 @@ exports.getNotes = async (req, res) => {
 // Get all public notes (for explore/discover feature)
 exports.getPublicNotes = async (req, res) => {
   try {
-    const { search, subject } = req.query;
+    const { search, subject, semester, noteType } = req.query;
     
     // Use aggregation for searching by owner name
     const pipeline = [
@@ -79,6 +79,20 @@ exports.getPublicNotes = async (req, res) => {
       pipeline.push({
         $match: { subject: new mongoose.Types.ObjectId(subject) }
       });
+    }
+
+    // Add semester filter if provided (e.g. ?semester=4th)
+    if (semester) {
+      pipeline.push({ $match: { semester: semester } });
+    }
+
+    // Add noteType filter for PYQ filtering (e.g. ?noteType=pyq)
+    if (noteType) {
+      if (noteType === 'pyq') {
+        pipeline.push({ $match: { noteType: { $regex: /pyq/i } } });
+      } else {
+        pipeline.push({ $match: { noteType: { $regex: new RegExp(noteType, 'i') } } });
+      }
     }
     
     // Project the final shape
@@ -145,7 +159,7 @@ exports.toggleVisibility = async (req, res) => {
 // Upload a note with file (PDF or Image) via Cloudinary
 exports.uploadNote = async (req, res) => {
   try {
-    const { title, subject, subjectTag, isPublic } = req.body;
+    const { title, subject, subjectTag, isPublic, semester, noteType } = req.body;
     const owner = req.user._id;
     
     if (!title || !title.trim()) {
@@ -170,8 +184,12 @@ exports.uploadNote = async (req, res) => {
       originalName: file.originalname,
       content: req.body.content || "",
       extractedText: req.body.content || "",
-      isPublic: isPublic === 'true' || isPublic === true, // Support string or boolean
+      isPublic: isPublic === 'true' || isPublic === true,
     };
+
+    // Save semester and noteType if provided
+    if (semester) noteData.semester = semester.trim();
+    if (noteType) noteData.noteType = noteType.trim();
 
     // Set either subject ref or subjectTag
     if (subjectTag) {

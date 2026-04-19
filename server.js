@@ -227,6 +227,9 @@ if (CHARCHA_ENABLED) {
 // Admin routes
 app.use("/api/admin", require("./routes/adminRoutes"));
 
+// Suggestion routes (public POST, admin GET/PATCH/DELETE)
+app.use("/api/suggestions", require("./routes/suggestionRoutes"));
+
 // Team routes
 app.use("/api/team", require("./routes/teamRoutes"));
 

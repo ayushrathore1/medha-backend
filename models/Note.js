@@ -60,6 +60,16 @@ const NoteSchema = new mongoose.Schema(
         explanation: String,
       },
     ],
+    semester: {
+      type: String,
+      default: null, // "1st", "2nd", "3rd", "4th", etc.
+      trim: true,
+    },
+    noteType: {
+      type: String,
+      default: null, // "📄 PYQ Paper", "📝 Handwritten Notes", "💻 Typed Notes", "📊 Diagrams"
+      trim: true,
+    },
     likes: [
       {
         type: mongoose.Schema.Types.ObjectId,
