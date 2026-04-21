@@ -72,6 +72,11 @@ router.post("/invite-team", adminController.inviteTeamMember);
 // Get Email History
 router.get("/history", adminController.getEmailHistory);
 
+// Re-Engagement Email Campaign
+// POST /api/admin/send-reengagement
+// Body: { mode: "preview" | "dry-run" | "send", sampleName?: "Ayush" }
+router.post("/send-reengagement", adminController.sendReEngagementEmail);
+
 // Audio Transcription (Whisper)
 router.post(
   "/transcribe",

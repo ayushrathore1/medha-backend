@@ -3,39 +3,22 @@ const express = require("express");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const React = require("react");
 const User = require("../models/User");
 const PasswordResetToken = require("../models/PasswordResetToken");
 const { sendEmail } = require("../utils/sendEmail");
+const { WelcomeEmail } = require("../emails/WelcomeEmail");
+const { PasswordResetEmail } = require("../emails/PasswordResetEmail");
+const { renderEmail } = require("../emails/renderEmail");
 
 const router = express.Router();
 
-// Welcome email helper with fixed template
+// Welcome email helper using React Email component
 async function sendWelcomeEmail(user) {
-  const html = `
-    <div style="font-family:Inter, Arial, sans-serif; background: #f8fafc; padding: 28px 0; text-align:center;">
-      <div style="background:#fff; border-radius:12px; max-width:480px; margin:auto; padding:36px 32px; box-shadow:0 4px 18px 0 #0002;">
-        <h2 style="color:#2563eb; margin-top:0;">Welcome to <span style="color:#0ea5e9;">Medha</span> 🎉</h2>
-        <p style="font-size:1.18rem; color:#334155; margin-bottom:22px;">
-          Hi <b>${user.name}</b>, <br>
-          We're thrilled to welcome you to India's smartest notes & revision platform.<br>
-          Medha is now your personal space for superfast note-making, AI-powered quizzes, and deep revision.
-        </p>
-        <p style="font-size:1.08rem; color:#64748b;">
-          🚀 Start exploring all features now:<br>
-          <a href="https://medha-revision.vercel.app" style="background:#2563eb; color:#fff; padding:12px 20px; border-radius:8px;
-          text-decoration:none; font-weight:600; letter-spacing:0.5px; display:inline-block; margin-top:10px;">Open Medha</a>
-        </p>
-        <hr style="margin:32px 0; border: none; border-top:2px solid #eef2f7;">
-        <p style="color:#64748b; font-size:1rem;">
-          If you didn't sign up, ignore this message.<br>
-          For any questions: reply to this email — we reply fast!
-        </p>
-        <div style="margin-top:16px; font-size:0.97rem; color:#94a3b8;">Happy learning,<br>The Medha Team 🌟</div>
-      </div>
-    </div>
-  `;
-
   console.log("📧 Attempting to send welcome email to:", user.email);
+  const html = await renderEmail(
+    React.createElement(WelcomeEmail, { name: user.name })
+  );
   await sendEmail({
     to: user.email,
     subject: "Welcome to Medha! 🎉",
@@ -80,100 +63,15 @@ router.post("/forgot-password", async (req, res) => {
 
     const resetUrl = `${process.env.APP_BASE_URL}/reset-password?token=${encodeURIComponent(jwtWrapper)}`;
 
-    const html = `
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reset Your Password</title>
-  <style type="text/css">
-    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-    img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-    table { border-collapse: collapse !important; }
-    body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #fffaf0; color: #4338ca; font-family: 'Segoe UI', Candara, 'Bitstream Vera Sans', 'DejaVu Sans', 'Bitstream Vera Sans', Geneva, sans-serif; }
-    .main-card { background-color: #ffffff; border-radius: 24px; border: 1px solid #fde68a; box-shadow: 0 10px 30px rgba(251, 191, 36, 0.1); }
-    .serif-header { font-family: 'Georgia', 'Times New Roman', serif; color: #b45309; }
-    .relatable-message { background-color: #fffbeb; border: 1px dashed #fbbf24; border-radius: 16px; padding: 30px; margin: 25px 0; }
-    .decoration-text { color: #d97706; font-size: 20px; }
-    @media screen and (max-width: 600px) {
-        .email-container { width: 100% !important; }
-        .padding-mobile { padding: 30px 20px !important; }
-    }
-  </style>
-</head>
-<body style="margin: 0; padding: 0; background-color: #fffaf0;">
-  <center style="width: 100%; table-layout: fixed; background-color: #fffaf0; padding-bottom: 50px;">
-    <div style="display: none; font-size: 1px; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all; font-family: sans-serif;">
-      Reset your Medha Revision password. Link expires in ${process.env.RESET_TOKEN_TTL_MIN || 30} minutes.
-    </div>
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
-      <tr><td height="40" style="font-size: 40px; line-height: 40px;">&nbsp;</td></tr>
-    </table>
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" class="email-container main-card" style="max-width: 600px;">
-      <tr>
-        <td align="center" style="padding: 40px 20px 0 20px;">
-          <span class="decoration-text">✨ 🔐 ✨</span>
-          <div style="padding-top: 15px;">
-            <img src="https://ik.imagekit.io/ayushrathore1/MEDHA%20Revision%20Logo%20(5)/6.svg?updatedAt=1767677218473" alt="Medha Revision" width="120" style="display: block; outline: none; object-fit: contain;" />
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td class="padding-mobile" style="padding: 30px 60px 40px 60px; font-size: 17px; line-height: 1.8; color: #57534e; text-align: left;">
-          <h1 class="serif-header" style="margin: 0 0 20px 0; font-size: 32px; text-align: center; font-weight: normal;">
-            Reset Password
-          </h1>
-          <p style="text-align: center; color: #78716c;">
-            Hi <strong>${user.name || 'Student'}</strong>, you requested to reset your password.
-          </p>
-          <div class="relatable-message" style="text-align: center;">
-            <p style="margin: 0; font-size: 16px; color: #92400e; font-family: 'Georgia', serif; line-height: 1.6;">
-              "No worries! It happens to the best of us. Let's get you back to your revision."
-            </p>
-          </div>
-          <p style="text-align: center;">
-            Click the button below to set a new password. This link is valid for <strong>${process.env.RESET_TOKEN_TTL_MIN || 30} minutes</strong>.
-          </p>
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${resetUrl}" style="background-color: #d97706; color: #ffffff; padding: 14px 30px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.2);">Set New Password</a>
-          </div>
-          <p style="margin: 0; text-align: center; font-size: 14px; color: #a8a29e;">
-            If you didn't request this, you can safely ignore this email.
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td class="padding-mobile" style="padding: 0 60px 50px 60px;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-top: 1px solid #fef3c7;">
-            <tr>
-              <td style="padding-top: 30px; text-align: center;">
-                <p style="margin: 0; color: #a8a29e; font-size: 15px; letter-spacing: 0.5px;">
-                  Sent with warmth,<br>
-                  <strong style="color: #78350f; font-size: 18px; font-family: 'Georgia', serif;">Medha Revision</strong>
-                </p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr>
-        <td align="center" style="padding: 30px; background-color: #fffcf2; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; font-size: 12px; color: #a8a29e; border-top: 1px solid #fef3c7;">
-          <p style="margin: 0; letter-spacing: 1px;">MADE WITH ❤️ BY <strong>MEDHA REVISION</strong></p>
-          <p style="margin: 10px 0 0 0;">
-            <a href="https://medha-revision.vercel.app/" style="color: #d97706; text-decoration: none; font-weight: bold;">Visit the Website</a>
-          </p>
-        </td>
-      </tr>
-    </table>
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
-      <tr><td height="40" style="font-size: 40px; line-height: 40px;">&nbsp;</td></tr>
-    </table>
-  </center>
-</body>
-</html>
-    `;
+    // Render React Email component to HTML
+    const ttlMinutes = Number(process.env.RESET_TOKEN_TTL_MIN || 30);
+    const html = await renderEmail(
+      React.createElement(PasswordResetEmail, {
+        name: user.name || 'Student',
+        resetUrl,
+        ttlMinutes,
+      })
+    );
 
     await sendEmail({ to: user.email, subject: "Medha password reset", html });
 
@@ -269,100 +167,15 @@ router.post("/admin/trigger-reset", auth, adminAuth, async (req, res) => {
 
     const resetUrl = `${process.env.APP_BASE_URL}/reset-password?token=${encodeURIComponent(jwtWrapper)}`;
 
-    const html = `
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reset Your Password</title>
-  <style type="text/css">
-    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-    img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-    table { border-collapse: collapse !important; }
-    body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #fffaf0; color: #4338ca; font-family: 'Segoe UI', Candara, 'Bitstream Vera Sans', 'DejaVu Sans', 'Bitstream Vera Sans', Geneva, sans-serif; }
-    .main-card { background-color: #ffffff; border-radius: 24px; border: 1px solid #fde68a; box-shadow: 0 10px 30px rgba(251, 191, 36, 0.1); }
-    .serif-header { font-family: 'Georgia', 'Times New Roman', serif; color: #b45309; }
-    .relatable-message { background-color: #fffbeb; border: 1px dashed #fbbf24; border-radius: 16px; padding: 30px; margin: 25px 0; }
-    .decoration-text { color: #d97706; font-size: 20px; }
-    @media screen and (max-width: 600px) {
-        .email-container { width: 100% !important; }
-        .padding-mobile { padding: 30px 20px !important; }
-    }
-  </style>
-</head>
-<body style="margin: 0; padding: 0; background-color: #fffaf0;">
-  <center style="width: 100%; table-layout: fixed; background-color: #fffaf0; padding-bottom: 50px;">
-    <div style="display: none; font-size: 1px; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all; font-family: sans-serif;">
-      Reset your Medha Revision password. Link expires in ${process.env.RESET_TOKEN_TTL_MIN || 30} minutes.
-    </div>
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
-      <tr><td height="40" style="font-size: 40px; line-height: 40px;">&nbsp;</td></tr>
-    </table>
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" class="email-container main-card" style="max-width: 600px;">
-      <tr>
-        <td align="center" style="padding: 40px 20px 0 20px;">
-          <span class="decoration-text">✨ 🔐 ✨</span>
-          <div style="padding-top: 15px;">
-            <img src="https://ik.imagekit.io/ayushrathore1/MEDHA%20Revision%20Logo%20(5)/6.svg?updatedAt=1767677218473" alt="Medha Revision" width="120" style="display: block; outline: none; object-fit: contain;" />
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td class="padding-mobile" style="padding: 30px 60px 40px 60px; font-size: 17px; line-height: 1.8; color: #57534e; text-align: left;">
-          <h1 class="serif-header" style="margin: 0 0 20px 0; font-size: 32px; text-align: center; font-weight: normal;">
-            Reset Password
-          </h1>
-          <p style="text-align: center; color: #78716c;">
-            Hi <strong>${user.name || 'Student'}</strong>, you requested to reset your password.
-          </p>
-          <div class="relatable-message" style="text-align: center;">
-            <p style="margin: 0; font-size: 16px; color: #92400e; font-family: 'Georgia', serif; line-height: 1.6;">
-              "No worries! It happens to the best of us. Let's get you back to your revision."
-            </p>
-          </div>
-          <p style="text-align: center;">
-            Click the button below to set a new password. This link is valid for <strong>${process.env.RESET_TOKEN_TTL_MIN || 30} minutes</strong>.
-          </p>
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${resetUrl}" style="background-color: #d97706; color: #ffffff; padding: 14px 30px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.2);">Set New Password</a>
-          </div>
-          <p style="margin: 0; text-align: center; font-size: 14px; color: #a8a29e;">
-            If you didn't request this, you can safely ignore this email.
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td class="padding-mobile" style="padding: 0 60px 50px 60px;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-top: 1px solid #fef3c7;">
-            <tr>
-              <td style="padding-top: 30px; text-align: center;">
-                <p style="margin: 0; color: #a8a29e; font-size: 15px; letter-spacing: 0.5px;">
-                  Sent with warmth,<br>
-                  <strong style="color: #78350f; font-size: 18px; font-family: 'Georgia', serif;">Medha Revision</strong>
-                </p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr>
-        <td align="center" style="padding: 30px; background-color: #fffcf2; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; font-size: 12px; color: #a8a29e; border-top: 1px solid #fef3c7;">
-          <p style="margin: 0; letter-spacing: 1px;">MADE WITH ❤️ BY <strong>MEDHA REVISION</strong></p>
-          <p style="margin: 10px 0 0 0;">
-            <a href="https://medha-revision.vercel.app/" style="color: #d97706; text-decoration: none; font-weight: bold;">Visit the Website</a>
-          </p>
-        </td>
-      </tr>
-    </table>
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
-      <tr><td height="50" style="font-size: 50px; line-height: 50px;">&nbsp;</td></tr>
-    </table>
-  </center>
-</body>
-</html>
-    `;
+    // Render React Email component to HTML (reuses same PasswordResetEmail component)
+    const adminTtlMinutes = Number(process.env.RESET_TOKEN_TTL_MIN || 30);
+    const html = await renderEmail(
+      React.createElement(PasswordResetEmail, {
+        name: user.name || 'Student',
+        resetUrl,
+        ttlMinutes: adminTtlMinutes,
+      })
+    );
 
     await sendEmail({ 
       to: user.email, 

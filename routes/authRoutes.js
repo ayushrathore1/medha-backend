@@ -3,12 +3,15 @@ const router = express.Router();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const React = require("react");
 
 const User = require("../models/User");
 const Otp = require("../models/Otp");
 const auth = require("../middleware/auth");
 const { sendWelcomeEmail } = require("./authExtraRoutes");
 const { sendEmail } = require("../utils/sendEmail");
+const { OtpEmail } = require("../emails/OtpEmail");
+const { renderEmail } = require("../emails/renderEmail");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 const OTP_EXPIRY_MINUTES = 10;
@@ -20,71 +23,6 @@ function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
 }
 
-// ── Themed OTP email HTML ──
-function getOtpEmailHtml(code, type = "verification") {
-  const title = type === "login" ? "Login Verification" : "Verify Your Email";
-  const subtitle = type === "login"
-    ? "Use this code to log in to your MEDHA account"
-    : "Use this code to complete your MEDHA registration";
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-</head>
-<body style="margin:0; padding:0; background-color:#F2EDE4; font-family:'Segoe UI',Roboto,Arial,sans-serif;">
-  <center style="width:100%; background-color:#F2EDE4; padding:40px 0;">
-    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:520px;">
-      <!-- Header -->
-      <tr>
-        <td style="background:#1A1A2E; padding:28px 32px; border-radius:20px 20px 0 0; text-align:center;">
-          <table cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr>
-              <td align="center">
-                <div style="width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,#7DC67A,#8B5CF6); display:inline-block; text-align:center; line-height:44px; font-size:20px; font-weight:800; color:white;">M</div>
-              </td>
-            </tr>
-            <tr>
-              <td align="center" style="padding-top:12px;">
-                <div style="font-size:20px; font-weight:700; color:white; letter-spacing:1px;">MEDHA</div>
-                <div style="font-size:12px; color:#7DC67A; margin-top:4px;">Your Study Companion</div>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <!-- Body -->
-      <tr>
-        <td style="background:white; padding:40px 36px; border-left:1px solid #E8E4DC; border-right:1px solid #E8E4DC;">
-          <h1 style="margin:0 0 8px; font-size:24px; font-weight:700; color:#1A1A2E; text-align:center;">${title}</h1>
-          <p style="margin:0 0 28px; font-size:15px; color:#6B6B6B; text-align:center; line-height:1.5;">${subtitle}</p>
-          
-          <!-- OTP Box -->
-          <div style="background:#F9F6F1; border:2px solid #7DC67A; border-radius:16px; padding:24px; text-align:center; margin:0 auto 28px;">
-            <div style="font-size:36px; font-weight:800; letter-spacing:12px; color:#1A1A2E; font-family:'Courier New',monospace;">${code}</div>
-            <div style="font-size:12px; color:#9A9A9A; margin-top:8px;">Expires in ${OTP_EXPIRY_MINUTES} minutes</div>
-          </div>
-
-          <p style="margin:0 0 8px; font-size:13px; color:#9A9A9A; text-align:center;">If you didn't request this code, please ignore this email.</p>
-          <p style="margin:0; font-size:13px; color:#9A9A9A; text-align:center;">Do not share this code with anyone.</p>
-        </td>
-      </tr>
-      <!-- Footer -->
-      <tr>
-        <td style="background:#F9F6F1; padding:24px 32px; border-radius:0 0 20px 20px; border:1px solid #E8E4DC; border-top:none; text-align:center;">
-          <p style="margin:0; font-size:11px; color:#9A9A9A; letter-spacing:1px;">MADE WITH ❤️ BY MEDHA REVISION</p>
-          <p style="margin:8px 0 0;">
-            <a href="https://medha-revision.vercel.app" style="color:#7DC67A; text-decoration:none; font-size:12px; font-weight:600;">Visit Website</a>
-          </p>
-        </td>
-      </tr>
-    </table>
-  </center>
-</body>
-</html>`;
-}
 
 // ═══════════════════════════════════════════════════════
 // @route   POST /api/auth/send-otp
@@ -139,13 +77,18 @@ router.post("/send-otp", async (req, res) => {
       expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
     });
 
+    // Render React Email component to HTML
+    const html = await renderEmail(
+      React.createElement(OtpEmail, { code, type, expiryMinutes: OTP_EXPIRY_MINUTES })
+    );
+
     // Send email
     await sendEmail({
       to: normalizedEmail,
       subject: type === "login"
         ? "Your MEDHA Login Code 🔐"
         : "Verify Your Email — MEDHA ✉️",
-      html: getOtpEmailHtml(code, type),
+      html,
     });
 
     console.log(`✅ OTP sent to ${normalizedEmail} (type: ${type})`);

@@ -5,6 +5,9 @@ const { sendEmail } = require("../utils/sendEmail");
 const crypto = require("crypto");
 const axios = require("axios");
 const FormData = require("form-data");
+const React = require("react");
+const { TeamInvitationEmail } = require("../emails/TeamInvitationEmail");
+const { renderEmail } = require("../emails/renderEmail");
 
 // Track in-flight email operations to prevent duplicate sends
 const inFlightOperations = new Set();
@@ -199,6 +202,180 @@ exports.sendAdminEmail = async (req, res) => {
     // Clear the in-flight operation lock on error
     inFlightOperations.delete(operationKey);
     res.status(500).json({ message: "Server error during email sending." });
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// Send Re-Engagement Email to users
+// Supports 3 modes:
+//   mode=preview  → renders one sample HTML, returns it for review (NO emails sent)
+//   mode=dry-run  → queries users, reports count (NO emails sent)
+//   mode=send     → actually sends personalized emails
+// ═══════════════════════════════════════════════════════
+exports.sendReEngagementEmail = async (req, res) => {
+  const { mode = "preview" } = req.body;  // preview | dry-run | send
+  const { ReEngagementEmail } = require("../emails/ReEngagementEmail");
+  const { renderEmail } = require("../emails/renderEmail");
+
+  const SUBJECT = "yo — we built something. wanna help shape it? 👀";
+  const EMAIL_DELAY_MS = 2000;
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  try {
+    // ── Preview Mode: render one sample and return HTML for review ──
+    if (mode === "preview") {
+      const sampleName = req.body.sampleName || "there";
+      const html = await renderEmail(
+        React.createElement(ReEngagementEmail, { name: sampleName })
+      );
+      return res.json({
+        mode: "preview",
+        message: "Preview rendered. Review the HTML below before sending.",
+        subject: SUBJECT,
+        htmlLength: html.length,
+        html,
+      });
+    }
+
+    // ── Fetch eligible users (all users who signed up before Feb 2026) ──
+    const cutoffDate = new Date("2026-02-01T00:00:00Z");
+    let usersToSend = await User.find({
+      email: { $exists: true, $ne: null },
+      createdAt: { $lt: cutoffDate },
+    }).select("name email createdAt").lean();
+
+    // ── Check EmailLog for deduplication ──
+    const logKey = "re-engagement-apr-2026"; // unique campaign ID
+    let existingLog = await EmailLog.findOne({ subject: SUBJECT, campaignId: logKey });
+    let alreadySentEmails = new Set(existingLog?.recipients || []);
+
+    const originalCount = usersToSend.length;
+    usersToSend = usersToSend.filter(
+      (user) => user.email && user.email.includes("@") && !alreadySentEmails.has(user.email.toLowerCase())
+    );
+    const skippedCount = originalCount - usersToSend.length;
+
+    // ── Dry-Run Mode: report numbers, don't send ──
+    if (mode === "dry-run") {
+      return res.json({
+        mode: "dry-run",
+        message: `Found ${usersToSend.length} users to send to (${skippedCount} already received / filtered).`,
+        totalEligible: originalCount,
+        toSend: usersToSend.length,
+        skipped: skippedCount,
+        sampleUsers: usersToSend.slice(0, 5).map(u => ({
+          name: u.name || "Student",
+          email: u.email,
+          signedUp: u.createdAt,
+        })),
+      });
+    }
+
+    // ── Send Mode: actually send personalized emails ──
+    if (mode !== "send") {
+      return res.status(400).json({
+        message: "Invalid mode. Use 'preview', 'dry-run', or 'send'.",
+      });
+    }
+
+    // Prevent duplicate sends
+    const operationKey = `reengagement-${logKey}`;
+    if (inFlightOperations.has(operationKey)) {
+      return res.status(409).json({
+        message: "Re-engagement email campaign is already in progress.",
+      });
+    }
+    inFlightOperations.add(operationKey);
+
+    if (usersToSend.length === 0) {
+      inFlightOperations.delete(operationKey);
+      return res.json({
+        message: `All ${originalCount} eligible users have already received this email.`,
+        details: { success: 0, failed: 0, skipped: skippedCount },
+      });
+    }
+
+    console.log(`📧 [Re-Engagement] Starting: ${usersToSend.length} recipients (${skippedCount} skipped)`);
+
+    let successCount = 0;
+    let failureCount = 0;
+    let successfulRecipients = [];
+
+    for (let i = 0; i < usersToSend.length; i++) {
+      const user = usersToSend[i];
+      const firstName = user.name ? user.name.split(" ")[0] : null;
+
+      try {
+        // Render personalized email for each user
+        const html = await renderEmail(
+          React.createElement(ReEngagementEmail, { name: firstName })
+        );
+
+        await sendEmail({
+          to: user.email,
+          subject: SUBJECT,
+          html,
+        });
+
+        successCount++;
+        successfulRecipients.push(user.email.toLowerCase());
+        console.log(`✅ [${i + 1}/${usersToSend.length}] Re-engagement sent to ${user.email} (${firstName || 'anon'})`);
+      } catch (err) {
+        console.error(`❌ [${i + 1}/${usersToSend.length}] Failed: ${user.email}: ${err.message}`);
+        failureCount++;
+
+        if (err.responseCode === 421) {
+          console.log("⏳ Rate limited — waiting 30s...");
+          await delay(30000);
+        }
+      }
+
+      if (i < usersToSend.length - 1) {
+        await delay(EMAIL_DELAY_MS);
+      }
+    }
+
+    // ── Update EmailLog ──
+    try {
+      if (existingLog) {
+        existingLog.sentCount += 1;
+        existingLog.totalRecipients += successCount;
+        existingLog.recipients = [
+          ...new Set([...existingLog.recipients, ...successfulRecipients]),
+        ];
+        existingLog.lastSentAt = Date.now();
+        await existingLog.save();
+      } else {
+        await EmailLog.create({
+          subject: SUBJECT,
+          htmlBody: "[React Email Component: ReEngagementEmail]",
+          campaignId: logKey,
+          sentCount: 1,
+          totalRecipients: successCount,
+          recipients: successfulRecipients,
+          lastSentAt: Date.now(),
+        });
+      }
+    } catch (logError) {
+      console.error("Failed to log email history:", logError);
+    }
+
+    inFlightOperations.delete(operationKey);
+
+    console.log(`📧 [Re-Engagement] Complete: ${successCount} sent, ${failureCount} failed, ${skippedCount} skipped`);
+
+    return res.json({
+      mode: "send",
+      message: `Re-engagement email sent to ${successCount} users.`,
+      details: {
+        success: successCount,
+        failed: failureCount,
+        skipped: skippedCount,
+      },
+    });
+  } catch (error) {
+    console.error("Error in sendReEngagementEmail:", error);
+    res.status(500).json({ message: "Server error during re-engagement email." });
   }
 };
 
@@ -409,109 +586,10 @@ exports.inviteTeamMember = async (req, res) => {
       ? existingUser.name.split(" ")[0]
       : "Candidate";
 
-    const htmlBody = `
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Join the MEDHA Team</title>
-  <style type="text/css">
-    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-    img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-    table { border-collapse: collapse !important; }
-    body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #f2ede4; color: #1a1a1a; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-    .main-card { background-color: rgba(255, 255, 255, 0.6); backdrop-filter: blur(12px); border-radius: 24px; border: 1px solid #e8e4dc; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
-    .serif-header { font-family: 'Inter', -apple-system, sans-serif; color: #1a1a1a; font-weight: 800; font-size: 32px; letter-spacing: -0.05em; }
-    .relatable-message { background-color: #ffffff; border: 1px solid #e8e4dc; border-radius: 16px; padding: 30px; margin: 25px 0; }
-    @media screen and (max-width: 600px) {
-        .email-container { width: 100% !important; border-radius: 0 !important; border: none !important; }
-        .padding-mobile { padding: 30px 20px !important; }
-    }
-  </style>
-</head>
-<body style="margin: 0; padding: 0; background-color: #f2ede4;">
-  <center style="width: 100%; table-layout: fixed; background-color: #f2ede4; padding-bottom: 50px;">
-    <div style="display: none; font-size: 1px; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all; font-family: sans-serif;">
-      Ayush Rathore has invited you to join the MEDHA REVISION team! Use invite code ${code} to join.
-    </div>
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
-      <tr><td height="40" style="font-size: 40px; line-height: 40px;">&nbsp;</td></tr>
-    </table>
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" class="email-container main-card" style="max-width: 600px;">
-      <tr>
-        <td align="center" style="padding: 40px 20px 0 20px;">
-          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
-            <div style="width: 12px; height: 12px; border-radius: 50%; background-color: #ff6b00;"></div>
-            <span style="font-weight: 900; font-size: 24px; letter-spacing: -1px; color: #1a1a1a;">MEDHA</span>
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td class="padding-mobile" style="padding: 30px 60px 40px 60px; font-size: 16px; line-height: 1.6; color: #4a4a4a; text-align: left;">
-          <h1 class="serif-header" style="margin: 0 0 20px 0; text-align: center;">
-            You're Invited!
-          </h1>
-          <p style="text-align: center; color: #4a4a4a; font-weight: 500;">
-            Hi <strong>${firstName}</strong>,
-          </p>
-          <div class="relatable-message" style="text-align: center;">
-            <p style="margin: 0; font-size: 18px; color: #1a1a1a; font-family: 'Inter', sans-serif; line-height: 1.6;">
-              <strong>Ayush Rathore</strong> is inviting you to join the <br/><span style="color: #ff6b00; font-weight: 800; letter-spacing: 0.5px;">MEDHA</span> team!
-            </p>
-          </div>
-          <p style="text-align: center;">
-            We're building a platform that helps college students prep faster for end-sem exams with the right resources and structure. Click below to accept the invitation.
-          </p>
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${joinLink}" style="background-color: #1a1a1a; color: #ffffff; padding: 14px 30px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">Accept Invitation</a>
-          </div>
-          <p style="text-align: center; margin: 0; font-size: 15px; color: #4a4a4a;">
-            Or, use this invitation code if asked:
-          </p>
-          <div style="text-align: center; margin: 20px 0;">
-            <span style="background-color: #f9f9f9; color: #1a1a1a; border: 1px solid #e8e4dc; padding: 10px 24px; border-radius: 12px; font-family: monospace; font-size: 22px; font-weight: 700; letter-spacing: 4px;">${code}</span>
-          </div>
-          <p style="text-align: center; font-size: 14px; color: #888888; margin-top: 30px;">
-            Note: You must have an account with this email address to join the team.
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td class="padding-mobile" style="padding: 0 60px 40px 60px;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-top: 1px solid #e8e4dc;">
-            <tr>
-              <td style="padding-top: 30px; text-align: center;">
-                <p style="margin: 0; color: #4a4a4a; font-size: 15px; letter-spacing: 0.5px;">
-                  Thanks,<br>
-                  <strong style="color: #1a1a1a; font-size: 16px; font-weight: 700;">Ayush Rathore</strong><br/>
-                  <span style="font-size: 14px; color: #888888; font-weight: 500;">MEDHA Revision</span>
-                </p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr>
-        <td align="center" style="padding: 30px; background-color: #f9f9f9; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; font-size: 12px; color: #888888; border-top: 1px solid #e8e4dc;">
-          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px;">
-            <div style="width: 8px; height: 8px; border-radius: 50%; background-color: #ff6b00;"></div>
-            <strong style="color: #1a1a1a;">MEDHA</strong>
-          </div>
-          <p style="margin: 0; margin-bottom: 10px;">
-            <a href="https://medha-revision.vercel.app/" style="color: #4a4a4a; text-decoration: none; font-weight: 600;">Visit the Website</a>
-          </p>
-        </td>
-      </tr>
-    </table>
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
-      <tr><td height="50" style="font-size: 50px; line-height: 50px;">&nbsp;</td></tr>
-    </table>
-  </center>
-</body>
-</html>
-    `;
+    // Render React Email component to HTML
+    const htmlBody = await renderEmail(
+      React.createElement(TeamInvitationEmail, { firstName, code, joinLink })
+    );
 
     // Attempt to send email
     await sendEmail({
