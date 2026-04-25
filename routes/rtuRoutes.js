@@ -49,5 +49,15 @@ router.delete(
   questionImageController.deleteQuestionImage
 );
 
+// ============================================================================
+// MULTI-YEAR ANALYSIS & AI PREDICTION
+// ============================================================================
+
+// GET /api/rtu/subjects/:subjectName/multi-year-weightage?years=2022,2023,2024
+router.get("/subjects/:subjectName/multi-year-weightage", authMiddleware, rtuWeightageController.getMultiYearWeightage);
+
+// POST /api/rtu/subjects/:subjectName/ai-predict-topics
+router.post("/subjects/:subjectName/ai-predict-topics", authMiddleware, rtuWeightageController.predictImportantTopics);
+
 module.exports = router;
 
