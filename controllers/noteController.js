@@ -3,6 +3,9 @@ const Note = require("../models/Note");
 const User = require("../models/User");
 const mongoose = require("mongoose");
 const notifications = require("./notificationController");
+const fs = require("fs");
+const path = require("path");
+const { uploadToCloudinary, CLOUDINARY_MAX_BYTES } = require("../utils/cloudinaryUpload");
 
 // List user's own notes (optionally filtered by subject)
 exports.getNotes = async (req, res) => {
@@ -156,7 +159,8 @@ exports.toggleVisibility = async (req, res) => {
   }
 };
 
-// Upload a note with file (PDF or Image) via Cloudinary
+// Upload a note with file (PDF or Image)
+// Strategy: files ≤ 10MB → Cloudinary (CDN), files > 10MB → served from disk
 exports.uploadNote = async (req, res) => {
   try {
     const { title, subject, subjectTag, isPublic, semester, noteType } = req.body;
@@ -176,10 +180,35 @@ exports.uploadNote = async (req, res) => {
       return res.status(400).json({ error: "No file uploaded." });
     }
 
+    let fileUrl;
+    const localFilePath = file.path; // multer saved to ./uploads/notes/
+
+    // Decide storage strategy based on file size
+    if (file.size <= CLOUDINARY_MAX_BYTES) {
+      // Small file → upload to Cloudinary for CDN delivery
+      try {
+        const result = await uploadToCloudinary(localFilePath, file.originalname);
+        fileUrl = result.url;
+        // Clean up local file after successful Cloudinary upload
+        fs.unlink(localFilePath, (err) => {
+          if (err) console.warn("[Upload] Failed to cleanup local file:", err.message);
+        });
+      } catch (cloudErr) {
+        console.warn("[Upload] Cloudinary upload failed, using local storage:", cloudErr.message);
+        // Fallback to local storage
+        fileUrl = `/uploads/notes/${file.filename}`;
+      }
+    } else {
+      // Large file → serve from disk (bypasses Cloudinary 10MB limit)
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+      console.log(`[Upload] Large file (${sizeMB}MB) — storing on disk: ${file.filename}`);
+      fileUrl = `/uploads/notes/${file.filename}`;
+    }
+
     const noteData = {
       title: title.trim(),
       owner,
-      fileUrl: file.path,
+      fileUrl,
       fileType: file.mimetype,
       originalName: file.originalname,
       content: req.body.content || "",
@@ -209,6 +238,7 @@ exports.uploadNote = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // Create a note from pasted text (no file)
 exports.createTextNote = async (req, res) => {

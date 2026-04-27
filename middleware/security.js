@@ -156,10 +156,10 @@ const hppMiddleware = hpp({
 const requestTimeout =
   (timeoutMs = 30000) =>
   (req, res, next) => {
-    // Allow 2 minutes for file uploads
+    // Allow 5 minutes for file uploads
     const contentType = req.get("content-type") || "";
     const isFileUpload = contentType.includes("multipart/form-data");
-    const actualTimeout = isFileUpload ? 120000 : timeoutMs;
+    const actualTimeout = isFileUpload ? 300000 : timeoutMs;
 
     req.setTimeout(actualTimeout, () => {
       console.error(
@@ -262,7 +262,13 @@ const bodySizeValidator = (req, res, next) => {
   const contentLength = parseInt(req.get("content-length") || "0", 10);
   const contentType = req.get("content-type") || "";
 
-  // 70MB limit for everything (JSON or file uploads) to allow base64 images and large PDFs
+  // Skip size validation for file uploads (multipart/form-data)
+  // Large PDFs are stored on disk, not in memory
+  if (contentType.includes("multipart/form-data")) {
+    return next();
+  }
+
+  // 70MB limit for JSON and other non-file requests
   const maxSize = 70 * 1024 * 1024;
 
   if (contentLength > maxSize) {

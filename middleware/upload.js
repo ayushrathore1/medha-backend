@@ -1,16 +1,15 @@
-// Cloudinary + Multer integration for uploads
+// Multer integration for local disk uploads
+// Files are saved locally first, then uploaded to Cloudinary or served from disk
 require("dotenv").config();
 const multer = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const cloudinary = require("cloudinary").v2;
 const path = require("path");
+const fs = require("fs");
 
-// Cloudinary Configuration
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+// Ensure the uploads directory exists
+const UPLOAD_DIR = path.join(__dirname, "..", "uploads", "notes");
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
 
 // File filter: allow images (jpeg, jpg, png, gif) and PDFs
 function fileFilter(req, file, cb) {
@@ -37,36 +36,29 @@ function fileFilter(req, file, cb) {
   );
 }
 
-// Multer Cloudinary Storage Setup
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => {
-    const isPDF = file.mimetype === "application/pdf";
-    // Sanitize filename: remove extension, replace special chars, trim whitespace
+// Local disk storage — saves to ./uploads/notes/
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, UPLOAD_DIR);
+  },
+  filename: (req, file, cb) => {
+    // Sanitize filename
     const baseName = file.originalname
-      .replace(/\.[^/.]+$/, "") // Remove extension
-      .replace(/[^a-zA-Z0-9_-]/g, "_") // Replace special chars with underscore
-      .replace(/_+/g, "_") // Collapse multiple underscores
-      .replace(/^_|_$/g, "") // Remove leading/trailing underscores
-      .trim(); // Remove any whitespace
-    
-    const safePublicId = `${Date.now()}-${baseName || "file"}`;
-    
-    return {
-      folder: "uploads",
-      resource_type: isPDF ? "raw" : "auto",
-      public_id: safePublicId,
-      // Make PDFs publicly accessible
-      access_mode: "public",
-      // For PDFs, use delivery type that allows direct access
-      type: "upload",
-    };
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "")
+      .trim();
+
+    const ext = path.extname(file.originalname).toLowerCase();
+    const safeFilename = `${Date.now()}-${baseName || "file"}${ext}`;
+    cb(null, safeFilename);
   },
 });
 
+// No file size limit — large files are stored on disk, small ones go to Cloudinary
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 70 * 1024 * 1024 }, // 70 MB limit
   fileFilter: fileFilter,
 });
 

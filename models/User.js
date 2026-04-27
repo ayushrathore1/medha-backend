@@ -16,9 +16,18 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
       minlength: 6, // bcrypt hash, so actual user password should be validated before hashing
       select: false, // exclude by default from queries unless .select('+password')
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      unique: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ["local", "google", "both"],
+      default: "local",
     },
     college: {
       type: String,

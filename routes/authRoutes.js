@@ -278,8 +278,30 @@ router.post("/register", async (req, res, next) => {
         .json({ message: "Name, email, and password are required" });
     }
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email }).select("+password");
     if (user) {
+      // If user exists via Google but has no password, let them add one
+      if (user.googleId && !user.password) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(password, salt);
+        user.authProvider = "both";
+        if (name) user.name = name;
+        await user.save();
+
+        const payload = { userId: user._id, email: user.email };
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+
+        return res.status(200).json({
+          message: "Password added to your Google account. You can now use both methods.",
+          token,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            emailVerified: user.emailVerified || false,
+          },
+        });
+      }
       return res.status(409).json({ message: "User already exists" });
     }
 
@@ -291,6 +313,7 @@ router.post("/register", async (req, res, next) => {
       name,
       email,
       password: hashedPassword,
+      authProvider: "local",
       emailVerified: emailVerified === true,
     });
 
@@ -347,8 +370,8 @@ router.post("/login", async (req, res, next) => {
 
     if (!user.password) {
       return res
-        .status(500)
-        .json({ message: "Password not set for this user. Signup required." });
+        .status(401)
+        .json({ message: "This account uses Google sign-in. Please click 'Continue with Google' to log in." });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -480,6 +503,180 @@ router.get("/me", auth, async (req, res, next) => {
     res.json(user);
   } catch (err) {
     next(err);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// @route   GET /api/auth/google
+// @desc    Redirect to Google OAuth2 consent screen
+// ═══════════════════════════════════════════════════════
+router.get("/google", (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    return res.status(500).json({ message: "Google OAuth is not configured" });
+  }
+
+  const redirectUri = `${process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`}/api/auth/google/callback`;
+  const scope = encodeURIComponent("openid email profile");
+  const state = crypto.randomBytes(16).toString("hex"); // CSRF protection
+
+  const googleAuthUrl =
+    `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${clientId}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&response_type=code` +
+    `&scope=${scope}` +
+    `&access_type=offline` +
+    `&prompt=consent` +
+    `&state=${state}`;
+
+  res.redirect(googleAuthUrl);
+});
+
+// ═══════════════════════════════════════════════════════
+// @route   GET /api/auth/google/callback
+// @desc    Google OAuth2 callback — exchange code, find/create user, redirect
+// ═══════════════════════════════════════════════════════
+router.get("/google/callback", async (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.redirect(`${frontendUrl}/login?error=google_no_code`);
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = `${process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`}/api/auth/google/callback`;
+
+    // 1. Exchange authorization code for tokens
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      }),
+    });
+
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+      console.error("❌ Google token exchange failed:", tokenData);
+      return res.redirect(`${frontendUrl}/login?error=google_token_failed`);
+    }
+
+    // 2. Fetch user profile from Google
+    const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+
+    const profile = await profileRes.json();
+    if (!profile.email) {
+      return res.redirect(`${frontendUrl}/login?error=google_no_email`);
+    }
+
+    const normalizedEmail = profile.email.toLowerCase().trim();
+    const googleId = profile.id;
+
+    // 3. Find-or-create user logic (handles account linking)
+    let user = await User.findOne({
+      $or: [{ googleId }, { email: normalizedEmail }],
+    }).select("+password");
+
+    if (user) {
+      // ── Existing user ──
+      if (!user.googleId) {
+        // User registered via email/password — link their Google account
+        user.googleId = googleId;
+        user.authProvider = user.password ? "both" : "google";
+        user.emailVerified = true;
+        // Use Google avatar if user doesn't have one
+        if (!user.avatar && profile.picture) {
+          user.avatar = profile.picture;
+        }
+      }
+      // If user already has googleId, just log them in (no changes needed)
+    } else {
+      // ── Brand new user via Google ──
+      user = new User({
+        name: profile.name || normalizedEmail.split("@")[0],
+        email: normalizedEmail,
+        googleId,
+        authProvider: "google",
+        emailVerified: true,
+        avatar: profile.picture || "",
+      });
+
+      // Send welcome email (fire-and-forget)
+      sendWelcomeEmail(user).catch((err) => {
+        console.error("❌ Welcome email failed for Google user:", err.message);
+      });
+    }
+
+    // 4. Update streak & activity (same logic as password login)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let streak = user.streak || 0;
+    let lastActive = user.lastActiveDate ? new Date(user.lastActiveDate) : null;
+    if (lastActive) {
+      lastActive.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil(Math.abs(today - lastActive) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) streak += 1;
+      else if (diffDays > 1) streak = 1;
+    } else {
+      streak = 1;
+    }
+    user.streak = streak;
+    user.lastActiveDate = new Date();
+
+    const todayStr = today.toISOString().split("T")[0];
+    const alreadyLogged = user.activityHistory?.some(
+      (d) => d.toISOString().split("T")[0] === todayStr
+    );
+    if (!alreadyLogged) {
+      user.activityHistory = user.activityHistory || [];
+      user.activityHistory.push(today);
+    }
+
+    if (user.avatarIndex === undefined || user.avatarIndex === null || user.avatarIndex < 0) {
+      user.avatarIndex = 0;
+    } else if (user.avatarIndex > 19) {
+      user.avatarIndex = 19;
+    }
+
+    await user.save();
+
+    // 5. Generate JWT
+    const payload = { userId: user._id, email: user.email };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+
+    // 6. Redirect to frontend with token & user data
+    const userData = encodeURIComponent(
+      JSON.stringify({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        university: user.university,
+        branch: user.branch,
+        gender: user.gender,
+        isAdmin: user.isAdmin,
+        streak: user.streak,
+        emailVerified: true,
+        avatar: user.avatar,
+      })
+    );
+
+    console.log(`✅ Google login successful for ${normalizedEmail}`);
+    const redirectUrl = `${frontendUrl}/auth/google/success?token=${token}` + String.fromCharCode(38) + `user=${userData}`;
+    console.log(`🔗 Redirecting to: ${redirectUrl.substring(0, 80)}...`);
+    res.redirect(redirectUrl);
+  } catch (err) {
+    console.error("❌ Google OAuth error:", err);
+    res.redirect(`${frontendUrl}/login?error=google_server_error`);
   }
 });
 

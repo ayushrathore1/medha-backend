@@ -16,6 +16,7 @@ console.log("🔍 [STARTUP] server.js loaded, Node.js version:", process.version
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
+const path = require("path");
 const cors = require("cors");
 const compression = require("compression");
 
@@ -120,6 +121,9 @@ app.use(
     maxAge: 86400, // Cache preflight for 24 hours
   })
 );
+
+// 3.5 Serve uploaded notes as static files (for large files stored on disk)
+app.use("/uploads/notes", express.static(path.join(__dirname, "uploads", "notes")));
 
 // 4. Body size validation (before body parsing)
 app.use(bodySizeValidator);
